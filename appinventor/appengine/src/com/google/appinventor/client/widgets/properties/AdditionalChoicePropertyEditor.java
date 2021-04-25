@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -33,7 +30,8 @@ public abstract class AdditionalChoicePropertyEditor extends PropertyEditor {
 
   // UI elements
   private final TextBox summary;
-  private PopupPanel popup;
+  protected PopupPanel popup;
+  private Button okButton;
 
   /**
    * Creates a new additional choice dialog.
@@ -66,7 +64,7 @@ public abstract class AdditionalChoicePropertyEditor extends PropertyEditor {
         closeAdditionalChoiceDialog(false);
       }
     });
-    Button okButton = new Button(MESSAGES.okButton());
+    okButton = new Button(MESSAGES.okButton());
     okButton.addClickHandler(new ClickHandler() {
       @Override
       public void onClick(ClickEvent event) {
@@ -78,11 +76,14 @@ public abstract class AdditionalChoicePropertyEditor extends PropertyEditor {
     buttonPanel.add(cancelButton);
     buttonPanel.add(okButton);
     buttonPanel.setWidth("100%");
-    buttonPanel.setHorizontalAlignment(HorizontalPanel.ALIGN_RIGHT);
+    buttonPanel.setHorizontalAlignment(HorizontalPanel.ALIGN_CENTER);
+    buttonPanel.setVerticalAlignment(HorizontalPanel.ALIGN_BOTTOM);
 
     VerticalPanel contentPanel = new VerticalPanel();
+    panel.setHeight("100%");
     contentPanel.add(panel);
     contentPanel.add(buttonPanel);
+    contentPanel.setCellHeight(buttonPanel, (cancelButton.getOffsetHeight() + 10) + "px");
 
     popup = new PopupPanel(false, true);
     popup.setAutoHideEnabled(true);
@@ -162,4 +163,16 @@ public abstract class AdditionalChoicePropertyEditor extends PropertyEditor {
    * @return true if the dialog is allowed to close
    */
   protected abstract boolean okAction();
+
+  protected void setOkButtonEnabled(boolean enabled) {
+    okButton.setEnabled(enabled);
+  }
+
+  @Override
+  public void setMultipleValues(boolean multiple) {
+    super.setMultipleValues(multiple);
+    if (multiple) {
+      updateValue();
+    }
+  }
 }

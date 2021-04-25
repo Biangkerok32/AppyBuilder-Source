@@ -24,16 +24,16 @@ public class ComponentRemoveWidget extends AbstractPaletteItemWidget {
 
   public ComponentRemoveWidget(SimpleComponentDescriptor simpleComponentDescriptor) {
     super(simpleComponentDescriptor, imageResource);
-    }
-
-        @Override
-  protected void handleClick() {
-          if (Window.confirm(MESSAGES.reallyRemoveComponent())) {
-            long projectId = ode.getCurrentYoungAndroidProjectId();
-            YaProjectEditor projectEditor = (YaProjectEditor) ode.getEditorManager().getOpenProjectEditor(projectId);
-            SimpleComponentDatabase componentDatabase = SimpleComponentDatabase.getInstance();
-            componentDatabase.addComponentDatabaseListener(projectEditor);
-            componentDatabase.removeComponent(scd.getName());
-          }
-        }
   }
+
+  @Override
+  protected void handleClick() {
+    if (Window.confirm(MESSAGES.reallyRemoveComponent())) {
+      long projectId = ode.getCurrentYoungAndroidProjectId();
+      YaProjectEditor projectEditor = (YaProjectEditor) ode.getEditorManager().getOpenProjectEditor(projectId);
+      SimpleComponentDatabase componentDatabase = SimpleComponentDatabase.getInstance();
+      componentDatabase.addComponentDatabaseListener(projectEditor);
+      componentDatabase.removeComponent(scd.getName());
+    }
+  }
+}

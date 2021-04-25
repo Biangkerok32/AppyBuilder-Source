@@ -1,50 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
   <application></application>
-  <url-stream-handler>native</url-stream-handler>
-  <runtime>java8</runtime>
   <version>1</version>
-
-  <instance-class>F1</instance-class> <!-- F1: Basic for autoscaling. If B series (e.g. B2), then use below -->
+  <runtime>java8</runtime>
 
   <!-- Configure serving/caching of GWT files -->
   <static-files>
-    <include path="/blockly-*.js" expiration="365d">
-      <http-header name="Content-Type" value="application/javascript; charset=UTF-8" />
-    </include>
-    <include path="/fonts/*" expiration="365d">
-      <http-header name="Content-Type" value="font/ttf" />
-    </include>
-    <include path="/assets/*" />
     <include path="/companions/*" />
     <include path="/about/*" expiration="1d" />
-    <include path="/static/**" expiration="1d" />
-    <include path="/images/*" expiration="365d" />
+    <include path="/static/**" />
+    <include path="/static/fonts/*" expiration="365d">
+      <http-header name="Content-Type" value="font/ttf" />
+    </include>
+    <include path="/websiteassets/**" expiration="10s" />
     <include path="/Ya_tos_form.html" expiration="1d" />
     <include path="/favicon.ico" expiration="365d" />
-    <include path="/gwt.css" expiration="1d" />
-    <include path="/Ya.css" />
     <include path="/templates/**" expiration="1d" />
     <include path="/reference/**" expiration="1d" />
-    <include path="/closure-library/closure/goog/base.js" expiration="1d" />
-    <include path="/closure-library/closure/goog/css/dialog.css" expiration="1d" />
-    <include path="/closure-library/closure/goog/css/hsvapalette.css" />
-    <include path="/closure-library/closure/goog/deps.js" expiration="1d" />
-    <include path="/leaflet/**" />
-    <include path="/font-awesome/**" />
     <include path="/robots.txt" expiration="30d" />
 
     <!-- These are not cached on purpose -->
     <include path="/ode/**.nocache.*" expiration="0s" />
-    <include path="/blocklyframe.html" expiration="0s" />
     <include path="/index.html" expiration="0s" />
-    <include path="/android" expiration="0s" />
 
     <include path="/ode/**.cache.*" expiration="365d" />
     <exclude path="/ode/**.gwt.rpc" />
-
-    <!-- don't serve the key file as a static file! -->
-    <exclude path="/keystore/**" />
 
     <!-- don't serve the whitelist as a static file! -->
     <exclude path="/whitelist" />
@@ -56,9 +36,6 @@
   <sessions-enabled>false</sessions-enabled>
 
   <!-- Configuration and flags -->
-  <threadsafe>true</threadsafe>
-
-  <!-- Enable concurrency in the app engine server -->
   <system-properties>
     <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
 
@@ -81,21 +58,10 @@
          Inventor server unless they are listed in the appengine/war/whitelist file -->
     <property name="use.whitelist" value="false"/>
 
-    <!-- TODO 1: set bucket to empty string before checkin -->
     <!-- Name of storage bucket in Google Cloud Store -->
-    <property name="gcs.bucket" value="goldappybuilder.appspot.com" />
-
+    <property name="gcs.bucket" value="" />
     <!-- Whether or not to use GCS for storage -->
     <property name="use.gcs" value="true" />
-
-    <!-- Name of gallery bucket in Google Cloud Store -->
-    <property name="gallery.bucket" value="" />
-    <!-- Whether or not to use the gallery -->
-    <property name="use.gallery" value="false" />
-
-    <!-- Gallery Admin Email -->
-    <property name="gallery.admin.email" value="" />
-
 
     <!-- set to true if users need to accept a Terms of Service the first time
       they access App Inventor -->
@@ -111,7 +77,7 @@
      -->
 
     <property name="auth.usegoogle" value="true" />
-    <property name="auth.uselocal" value="false" />
+    <property name="auth.uselocal" value="true" />
 
     <!-- Flags associated with localauth code -->
     <property name="localauth.mailserver" value="https://osiris.mit.edu/passmail/" />
@@ -120,8 +86,22 @@
     <!-- host[:port] to use for connecting to the build server -->
     <property name="build.server.host" value="localhost:9990" />
 
-    <!-- List of round-robin hosts for whitelists -->
-    <property name="whitelist.host.address" value="http://3nportal.com/a2m/ai2Latest/whitelist,http://3nportal.com/a2m/ai2Latest/whitelist" />
+    <!-- We provide below for a second buildserver. If this field is
+         non-empty then the user is presented a choice of two different
+         build servers. This feature was introduced to support building
+         against two different versions of the Android SDK. As of 8/1/2018
+         MIT is using this feature with the first buildserver building Apps
+         with a minSdk of 7 (but no targetSdk defined) to support older
+         devices. The second buildserver is configured with a minSdk of 14
+         and a targetSdk of 26 (along with the necessary component code
+         changes). This is required for new Apps submitted to the Google
+         Play Store. Having two buildservers provides us the flexibility to
+         support older devices while also ensuring that people can submit
+         MIT App Inventor created Apps to the Google Play Store.
+    -->
+
+    <!-- host[:port] to use for the second build server -->
+    <property name="build2.server.host" value="" />
 
     <!-- host[:port] to tell build server the app host url to callback
          when deploy AppInventor on other GAE implementation such as
@@ -166,30 +146,41 @@
     <!-- Firebase Secret for the shared datastore -->
     <property name="firebase.secret" value="" />
     <property name="firebase.url" value="" />
-    <!-- TODO: Update below to point to your own firebase accout-->
-    <property name="private.firebase.url" value="https://YOUR-FIREBASE-PROJECT-ID.firebaseio.com/appybuilder/acct" />
 
-    <property name="library.url" value="http://appybuilder.com/explore/reference" />
-    <property name="get_started.url" value="http://appybuilder.com/explore/get-started" />
-    <property name="tutorials.url" value="http://appybuilder.com/explore/tutorials" />
+    <property name="library.url" value="http://appinventor.mit.edu/explore/library" />
+    <property name="get_started.url" value="http://appinventor.mit.edu/explore/get-started" />
+    <property name="tutorials.url" value="http://appinventor.mit.edu/explore/ai2/tutorials" />
     <property name="extensions.url" value="http://appinventor.mit.edu/extensions" />
     <property name="troubleshooting.url" value="http://appinventor.mit.edu/explore/ai2/support/troubleshooting" />
-    <property name="forums.url" value="http://Community.AppyBuilder.com" />
+    <property name="forums.url" value="https://community.appinventor.mit.edu" />
     <property name="feedback.url" value="http://something.example.com" />
-    <property name="release.notes.url" value=" https://help.appybuilder.com/release-notes.html" />
-    <property name="tos.url" value="http://help.appybuilder.com/terms-of-service.html" />
-    <property name="logo.url" value="http://appybuilder.com" />
-    <property name="guide.url" value="http://help.appybuilder.com/" />
-    <property name="community.url" value="http://community.appybuilder.com/" />
+    <property name="release.notes.url" value="http://appinventor.mit.edu/ai2/ReleaseNotes.html" />
+    <property name="tos.url" value="/about/termsofservice.html" />
+    <property name="logo.url" value="http://appinventor.mit.edu" />
+    <property name="guide.url" value="http://appinventor.mit.edu/explore/library" />
     <property name="reference.components.url" value="/reference/components/" />
 
-    <!-- CloudDB secret keys - Update to your own cloudDB-->
-    <property name="clouddb.server" value="changeme!"/>
+    <!-- CloudDB secret keys -->
+    <property name="clouddb.server" value="clouddb.example.com"/>
     <property name="clouddb.uuid.secret" value="changeme!"/>
-    <property name="clouddb.secret" value="mydifficultpassword" />
+    <property name="clouddb.secret" value="changeme too!" />
 
+    <!-- This appears to be needed after a suspected change in how
+         POSTs work with URLFetch around 09/20/2018 -->
+    <property name="appengine.api.urlfetch.defaultDeadline" value="40"/>
+
+    <!-- Supported maximum size of a project, in MB -->
+    <!-- App Engine HTTP requests/responses are capped at 32 MB -->
+    <property name="project.maxsize" value="30"/>
+
+    <!-- So the calls to the buildserver can re-use connections -->
+    <property name="http.keepAlive" value="true" />
+    <property name="http.maxConnections" value="5" />
 
   </system-properties>
+
+  <!-- Enable concurrency in the app engine server -->
+  <threadsafe>true</threadsafe>
 
 
 </appengine-web-app>

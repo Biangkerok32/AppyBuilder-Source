@@ -37,9 +37,10 @@ goog.provide('goog.vec.mat3f');
 goog.provide('goog.vec.mat3f.Type');
 
 goog.require('goog.vec');
+goog.require('goog.vec.vec3f.Type');
 
 
-/** @typedef {goog.vec.Float32} */ goog.vec.mat3f.Type;
+/** @typedef {!goog.vec.Float32} */ goog.vec.mat3f.Type;
 
 
 /**

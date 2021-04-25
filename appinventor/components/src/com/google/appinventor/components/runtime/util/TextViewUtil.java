@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -9,11 +6,6 @@
 
 package com.google.appinventor.components.runtime.util;
 
-import android.text.Html;
-import android.text.SpannableString;
-import android.text.TextUtils;
-import android.text.method.LinkMovementMethod;
-import android.text.util.Linkify;
 import com.google.appinventor.components.runtime.Component;
 
 import android.content.res.ColorStateList;
@@ -76,12 +68,6 @@ public class TextViewUtil {
     textview.invalidate();
   }
 
-  public static void setShadow(TextView view, float dx, float dy, float radius, int color) {
-    view.setShadowLayer(radius, dx, dy, color);
-    view.invalidate();
-  }
-
-
   /**
    * Returns the enabled state a {@link TextView}.
    *
@@ -113,16 +99,6 @@ public class TextViewUtil {
   public static float getFontSize(TextView textview, Context context) {
     float scaledDensity = context.getResources().getDisplayMetrics().scaledDensity;
     return textview.getTextSize()/scaledDensity;
-  }
-
-  /**
-   * Returns the font size for a {@link TextView}.
-   *
-   * @param textview   text view instance
-   * @return  font size in pixel
-   */
-  public static float getFontSize(TextView textview) {
-    return textview.getTextSize();
   }
 
   /**
@@ -215,21 +191,6 @@ public class TextViewUtil {
   }
 
   /**
-   * Creates linkable text for the component.
-   * NOTE: DO NOT use this method for TextBoxes. Should only be used for Labels
-   * @param textView
-   * @param text
-   */
-  public static void setTextHyperlinked(TextView textView, String text)
-  {
-    SpannableString spannableString = new SpannableString(text);
-    Linkify.addLinks(spannableString, Linkify.ALL);
-    textView.setText(spannableString);
-    textView.setMovementMethod(LinkMovementMethod.getInstance());
-    textView.requestLayout();
-  }
-
-  /**
    * Sets the padding for a {@link TextView}.
    *
    * @param textview   text view instance
@@ -238,36 +199,6 @@ public class TextViewUtil {
   public static void setPadding(TextView textview, int padding) {
     textview.setPadding(padding, padding, 0, 0);
     textview.requestLayout();
-  }
-
-  /**
-   * Returns the text for a {@link TextView}.
-   *
-   * @param textview   text view instance
-   * @return  text shown in text view
-   */
-  public static String getTextHyperlinked(TextView textview)
-  {
-    return getText(textview);
-  }
-
-
-  /**
-   * Enables marquee on textview
-   * @param textview
-   */
-  public static void setMarque(TextView textview, boolean enabled) {
-    if (enabled) {
-      textview.setEllipsize(TextUtils.TruncateAt.MARQUEE);
-    }
-
-    textview.setHorizontallyScrolling(enabled);
-    textview.setMarqueeRepeatLimit(enabled?-1:0); //-1 = foreever, 0=stop
-    textview.setFocusable(enabled);
-    textview.setFocusableInTouchMode(enabled);
-    textview.setHorizontallyScrolling(enabled);
-    textview.setSingleLine(enabled);  //this is needed to get it working on the emulator
-    textview.setSelected(enabled); // this is to start the marquee
   }
 
   /**
@@ -283,5 +214,43 @@ public class TextViewUtil {
 
   public static void setTextColors(TextView textview, ColorStateList colorStateList) {
     textview.setTextColor(colorStateList);
+  }
+
+  /**
+   * Sets the minimum width of a text view.
+   *
+   * @param textview text view instance
+   * @param minWidth minimum width of the text view in pixels
+   */
+  public static void setMinWidth(TextView textview, int minWidth) {
+    // According to https://developer.android.com/reference/android/widget/TextView.html#setMinWidth(int), the minimum
+    // width of TextView is the maximum of setMinWidth and setMinimumWidth. Talk about NIH syndrome!
+    textview.setMinWidth(minWidth);
+    textview.setMinimumWidth(minWidth);
+  }
+
+  /**
+   * Sets the minimum height of a text view.
+   *
+   * @param textview text view instance
+   * @param minHeight minimum height of the text view in pixels
+   */
+  public static void setMinHeight(TextView textview, int minHeight) {
+    // According to https://developer.android.com/reference/android/widget/TextView.html#setMinHeight(int), the minimum
+    // height of TextView is the maximum of setMinHeight and setMinimumHeight. Talk about NIH syndrome!
+    textview.setMinHeight(minHeight);
+    textview.setMinimumHeight(minHeight);
+  }
+
+  /**
+   * Sets the minimum size for a text view.
+   *
+   * @param textview text view instance
+   * @param minWidth minimum width of the text view in pixels
+   * @param minHeight minimum height of the text view in pixels
+   */
+  public static void setMinSize(TextView textview, int minWidth, int minHeight) {
+    TextViewUtil.setMinWidth(textview, minWidth);
+    TextViewUtil.setMinHeight(textview, minHeight);
   }
 }

@@ -5,7 +5,9 @@
 
 package com.google.appinventor.client.editor.simple.components;
 
-import com.google.appinventor.client.ComponentsTranslation;
+import java.util.Collections;
+import java.util.List;
+
 import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.editor.simple.SimpleEditor;
 import com.google.appinventor.client.output.OdeLog;
@@ -15,12 +17,10 @@ import com.google.appinventor.shared.rpc.project.FileDescriptorWithContent;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.shared.GWT;
 import com.google.gwt.json.client.JSONObject;
+import com.google.gwt.json.client.JSONValue;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Image;
-
-import java.util.Collections;
-import java.util.List;
 
 public class MockMarker extends MockMapFeatureBaseWithFill {
   public static final String TYPE = "Marker";
@@ -36,6 +36,7 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
   private double anchorU = 0.5;
   private double anchorV = 1.0;
   private JavaScriptObject nativeIcon;
+  private boolean needsSizeUpdate;
 
   public MockMarker(SimpleEditor editor) {
     super(editor, TYPE, images.marker());
@@ -52,76 +53,40 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
   static MockMarker fromGeoJSON(MockFeatureCollection parent, JSONObject properties, JavaScriptObject layer) {
     MockMarker marker = new MockMarker(parent.editor);
     marker.feature = layer;
-    marker.setContainer(parent);
-    String name = null;
-    boolean hadImageAsset = false;
-    for (String key : properties.keySet()) {
-      String value;
-      if (key.equalsIgnoreCase(PROPERTY_NAME_STROKEWIDTH) || key.equalsIgnoreCase(CSS_PROPERTY_STROKEWIDTH)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_STROKEWIDTH, value);
-        marker.onPropertyChange(PROPERTY_NAME_STROKEWIDTH, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_STROKECOLOR) || key.equalsIgnoreCase(CSS_PROPERTY_STROKE)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_STROKECOLOR, value);
-        marker.onPropertyChange(PROPERTY_NAME_STROKECOLOR, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_FILLCOLOR) || key.equalsIgnoreCase(CSS_PROPERTY_FILL)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_FILLCOLOR, value);
-        marker.onPropertyChange(PROPERTY_NAME_FILLCOLOR, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_ANCHORHORIZONTAL)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_ANCHORHORIZONTAL, value);
-        marker.onPropertyChange(PROPERTY_NAME_ANCHORHORIZONTAL, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_ANCHORVERTICAL)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_ANCHORVERTICAL, value);
-        marker.onPropertyChange(PROPERTY_NAME_ANCHORVERTICAL, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_WIDTH)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_WIDTH, value);
-        marker.onPropertyChange(PROPERTY_NAME_WIDTH, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_HEIGHT)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_HEIGHT, value);
-        marker.onPropertyChange(PROPERTY_NAME_HEIGHT, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_NAME)) {
-        name = properties.get(key).isString().stringValue();
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_IMAGE_ASSET)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_IMAGE_ASSET, value);
-        marker.onPropertyChange(PROPERTY_NAME_IMAGE_ASSET, value);
-        hadImageAsset = true;
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_VISIBLE)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_VISIBLE, value);
-        marker.onPropertyChange(PROPERTY_NAME_VISIBLE, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_TITLE)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_TITLE, value);
-        marker.onPropertyChange(PROPERTY_NAME_TITLE, value);
-      } else if (key.equalsIgnoreCase(PROPERTY_NAME_DESCRIPTION)) {
-        value = properties.get(key).isString().stringValue();
-        marker.changeProperty(PROPERTY_NAME_DESCRIPTION, value);
-        marker.onPropertyChange(PROPERTY_NAME_DESCRIPTION, value);
-      }
-    }
-    if (name == null) {
-      name = marker.getPropertyValue(PROPERTY_NAME_TITLE);
-    }
-    name = name.replaceAll("[ \t]+", "_");
-    if (name.equalsIgnoreCase("")) {
-      name = ComponentsTranslation.getComponentName("Marker") + "1";
-    }
-    name = ensureUniqueName(name, parent.editor.getComponentNames());
-    marker.changeProperty(PROPERTY_NAME_NAME, name);
-    marker.onPropertyChange(PROPERTY_NAME_NAME, name);
-    marker.getForm().fireComponentRenamed(marker, ComponentsTranslation.getComponentName("Marker"));
-    if (!hadImageAsset) {
-      marker.setImageAsset(null);
-    }
     marker.preserveLayerData();
+    marker.processFromGeoJSON(parent, properties);
     return marker;
+  }
+
+  protected void processFromGeoJSON(MockFeatureCollection parent, JSONObject properties) {
+    setImageAsset(null);
+    super.processFromGeoJSON(parent, properties);
+  }
+
+  protected void processPropertyFromGeoJSON(String key, JSONValue value) {
+    if (key.equalsIgnoreCase(PROPERTY_NAME_ANCHORHORIZONTAL)) {
+      String v = value.isString().stringValue();
+      changeProperty(PROPERTY_NAME_ANCHORHORIZONTAL, v);
+      onPropertyChange(PROPERTY_NAME_ANCHORHORIZONTAL, v);
+    } else if (key.equalsIgnoreCase(PROPERTY_NAME_ANCHORVERTICAL)) {
+      String v = value.isString().stringValue();
+      changeProperty(PROPERTY_NAME_ANCHORVERTICAL, v);
+      onPropertyChange(PROPERTY_NAME_ANCHORVERTICAL, v);
+    } else if (key.equalsIgnoreCase(PROPERTY_NAME_HEIGHT)) {
+      String v = value.isString().stringValue();
+      changeProperty(PROPERTY_NAME_HEIGHT, v);
+      onPropertyChange(PROPERTY_NAME_HEIGHT, v);
+    } else if (key.equalsIgnoreCase(PROPERTY_NAME_WIDTH)) {
+      String v = value.isString().stringValue();
+      changeProperty(PROPERTY_NAME_WIDTH, v);
+      onPropertyChange(PROPERTY_NAME_WIDTH, v);
+    } else if (key.equalsIgnoreCase(PROPERTY_NAME_IMAGE_ASSET)) {
+      String v = value.isString().stringValue();
+      changeProperty(PROPERTY_NAME_IMAGE_ASSET, v);
+      onPropertyChange(PROPERTY_NAME_IMAGE_ASSET, v);
+    } else {
+      super.processPropertyFromGeoJSON(key, value);
+    }
   }
 
   @Override
@@ -132,6 +97,7 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
     }
     panel.setVisible(false);
     this.map = map;
+    updateSizeIfNeeded();
     addToMap(map.getMapInstance());
   }
 
@@ -163,9 +129,17 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
     try {
       int newWidth = Integer.parseInt(text);
       if (newWidth == LENGTH_FILL_PARENT) {
-        width = map.getLayout().getLayoutWidth();
+        if (isMapInitialized()) {
+          width = map.getLayout().getLayoutWidth();
+        } else {
+          needsSizeUpdate = true;
+        }
       } else if (newWidth <= LENGTH_PERCENT_TAG) {
-        width = (int)((-newWidth - 1000) / 100.0 * map.getLayout().getLayoutWidth());
+        if (isMapInitialized()) {
+          width = (int) ((-newWidth - 1000) / 100.0 * map.getLayout().getLayoutWidth());
+        } else {
+          needsSizeUpdate = true;
+        }
       } else if (newWidth == LENGTH_PREFERRED) {
         width = srcWidth;
       } else {
@@ -182,9 +156,17 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
     try {
       int newHeight = Integer.parseInt(text);
       if (newHeight == LENGTH_FILL_PARENT) {
-        height = map.getLayout().getLayoutHeight();
-      } else if (newHeight == LENGTH_PERCENT_TAG) {
-        height = (int) ((-newHeight - 1000) / 100.0 * map.getLayout().getLayoutHeight());
+        if (isMapInitialized()) {
+          height = map.getLayout().getLayoutHeight();
+        } else {
+          needsSizeUpdate = true;
+        }
+      } else if (newHeight <= LENGTH_PERCENT_TAG) {
+        if (isMapInitialized()) {
+          height = (int) ((-newHeight - 1000) / 100.0 * map.getLayout().getLayoutHeight());
+        } else {
+          needsSizeUpdate = true;
+        }
       } else if (newHeight == LENGTH_PREFERRED) {
         height = srcHeight;
       } else {
@@ -297,6 +279,18 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
   @Override
   public int getPreferredHeight() {
     return ComponentConstants.MARKER_PREFERRED_HEIGHT;
+  }
+
+  private boolean isMapInitialized() {
+    return map != null && map.getLayout() != null;
+  }
+
+  private void updateSizeIfNeeded() {
+    if (needsSizeUpdate) {
+      setWidthProperty(getPropertyValue(PROPERTY_NAME_WIDTH));
+      setHeightProperty(getPropertyValue(PROPERTY_NAME_HEIGHT));
+      needsSizeUpdate = false;
+    }
   }
 
   // JSNI methods
@@ -426,7 +420,7 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
     map.addLayer(marker);
     if (!marker.clickHandler) {
       marker.clickHandler = function(e) {
-        self.@com.google.appinventor.client.editor.simple.components.MockMarker::select()();
+        self.@com.google.appinventor.client.editor.simple.components.MockMarker::select(*)(e);
         if (e.originalEvent) e.originalEvent.stopPropagation();
       };
       marker.dragHandler = function(e) {
@@ -460,6 +454,12 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
     var marker = this.@com.google.appinventor.client.editor.simple.components.MockMapFeatureBase::feature;
     if (visible) {
       map.addLayer(marker);
+      // Fix for #1137: Icon size info seems to be reset when we remove a marker from the map. This
+      // code will force recreating the marker from the icon, which should grab the 'real' iconSize info.
+      var icon = this.@com.google.appinventor.client.editor.simple.components.MockMarker::nativeIcon;
+      if (icon) {
+        marker.setIcon(icon);
+      }
     } else {
       map.removeLayer(marker);
     }
@@ -543,6 +543,8 @@ public class MockMarker extends MockMapFeatureBaseWithFill {
         iconUrl: url,
         className: 'ode-SimpleMockMapFeature',
         title: this.@com.google.appinventor.client.editor.simple.components.MockComponent::getName()(),
+        iconSize: [0, 0],  // Will be filled in during onLoad
+        iconAnchor: [0, 0],  // Will be filled in during onLoad
         onLoad: function(w, h) {
           // adjust w, h for selection border
           self.@com.google.appinventor.client.editor.simple.components.MockMarker::srcWidth = w;

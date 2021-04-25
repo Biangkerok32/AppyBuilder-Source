@@ -32,7 +32,6 @@ goog.provide('goog.labs.net.xhr.TimeoutError');
 goog.require('goog.Promise');
 goog.require('goog.asserts');
 goog.require('goog.debug.Error');
-goog.require('goog.json');
 goog.require('goog.net.HttpStatus');
 goog.require('goog.net.XmlHttp');
 goog.require('goog.object');
@@ -82,7 +81,7 @@ xhr.Options;
 
 /**
  * Defines the types that are allowed as post data.
- * @typedef {(ArrayBuffer|Blob|Document|FormData|null|string|undefined)}
+ * @typedef {(ArrayBuffer|ArrayBufferView|Blob|Document|FormData|null|string|undefined)}
  */
 xhr.PostData;
 
@@ -266,13 +265,15 @@ xhr.postJson = function(url, data, opt_options) {
  *     resolved with the XHR object once the request completes.
  */
 xhr.send = function(method, url, data, opt_options) {
-  return new goog.Promise(function(resolve, reject) {
-    var options = opt_options || {};
+  var options = opt_options || {};
+  var request = options.xmlHttpFactory ?
+      options.xmlHttpFactory.createInstance() :
+      goog.net.XmlHttp();
+
+  var result = new goog.Promise(/** @suppress {strictPrimitiveOperators} Part of the go/strict_warnings_migration */
+                                function(resolve, reject) {
     var timer;
 
-    var request = options.xmlHttpFactory ?
-        options.xmlHttpFactory.createInstance() :
-        goog.net.XmlHttp();
     try {
       request.open(method, url, true);
     } catch (e) {
@@ -363,12 +364,18 @@ xhr.send = function(method, url, data, opt_options) {
       reject(new xhr.Error('Error sending XHR: ' + e.message, url, request));
     }
   });
+  return result.thenCatch(function(error) {
+    if (error instanceof goog.Promise.CancellationError) {
+      request.abort();
+    }
+    throw error;
+  });
 };
 
 
 /**
  * @param {string} url The URL to test.
- * @return {boolean} Whether the effective scheme is HTTP or HTTPs.
+ * @return {boolean} Whether the effective scheme is HTTP or HTTPS.
  * @private
  */
 xhr.isEffectiveSchemeHttp_ = function(url) {
@@ -378,13 +385,23 @@ xhr.isEffectiveSchemeHttp_ = function(url) {
   return scheme == 'http' || scheme == 'https' || scheme == '';
 };
 
+/**
+ * @param {string} responseText
+ * @param {string=} opt_xssiPrefix Prefix used for protecting against XSSI
+ *     attacks, which should be removed before parsing the response as JSON.
+ * @return {!Object} JSON-parsed value of the original responseText.
+ */
+xhr.parseJson = function(responseText, opt_xssiPrefix) {
+  return xhr.parseJson_(responseText, {xssiPrefix: opt_xssiPrefix});
+};
+
 
 /**
  * JSON-parses the given response text, returning an Object.
  *
  * @param {string} responseText Response text.
  * @param {xhr.Options|undefined} options The options object.
- * @return {Object} The JSON-parsed value of the original responseText.
+ * @return {!Object} The JSON-parsed value of the original responseText.
  * @private
  */
 xhr.parseJson_ = function(responseText, options) {
@@ -393,7 +410,7 @@ xhr.parseJson_ = function(responseText, options) {
     prefixStrippedResult =
         xhr.stripXssiPrefix_(options.xssiPrefix, prefixStrippedResult);
   }
-  return goog.json.parse(prefixStrippedResult);
+  return /** @type {!Object} */ (JSON.parse(prefixStrippedResult));
 };
 
 

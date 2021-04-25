@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -35,11 +32,6 @@ public interface UserInfoServiceAsync {
   void getUserInformation(String sessionId, AsyncCallback<User> callback);
 
   /**
-   * @see UserInfoService#getUserInformationByUserId(String)
-   */
-  void getUserInformationByUserId(String userId, AsyncCallback<User> callback);
-
-  /**
    * @see UserInfoService#loadUserSettings()
    */
   void loadUserSettings(AsyncCallback<String> callback);
@@ -55,21 +47,6 @@ public interface UserInfoServiceAsync {
   void storeUserSettings(String settings, AsyncCallback<Void> callback);
 
   /**
-   * @see UserInfoService#storeNameSettings(String)
-   */
-  void storeUserName(String name, AsyncCallback<Void> callback);
-
-  /**
-   * @see UserInfoService#storeNameLink(String)
-   */
-  void storeUserLink(String link, AsyncCallback<Void> callback);
-
-  /**
-   * @see UserInfoService#storeUserEmailFrequency(int)
-   */
-  void storeUserEmailFrequency(int emailFrequency, AsyncCallback<Void> callback);
-
-  /**
    * @see UserInfoService#hasUserFile(String)
    */
   void hasUserFile(String fileName, AsyncCallback<Boolean> callback);
@@ -83,5 +60,15 @@ public interface UserInfoServiceAsync {
    * @see UserInfoService#noop(String)
    */
   void noop(AsyncCallback<Void> callback);
+
+  /**
+   * @see UserInfoService#getSharedBackpack(String)
+   */
+  void getSharedBackpack(String backPackId, AsyncCallback<String> callback);
+
+  /**
+   * @see UserInfoService#storeSharedBackpack(String, String)
+   */
+  void storeSharedBackpack(String backPackId, String content, AsyncCallback<Void> callback);
 
 }

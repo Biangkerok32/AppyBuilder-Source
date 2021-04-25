@@ -1,19 +1,20 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime;
 
-import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.SurfaceTexture;
-import android.view.View;
-import com.google.appinventor.components.annotations.DesignerProperty;
+import android.Manifest;
+import android.app.Activity;
+import android.content.ContentValues;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Log;
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.annotations.SimpleEvent;
@@ -22,66 +23,57 @@ import com.google.appinventor.components.annotations.SimpleObject;
 import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
-import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
+import com.google.appinventor.components.runtime.util.BulkPermissionRequest;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
-
-import android.app.Activity;
-import android.content.ContentValues;
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.util.Log;
-import com.google.appinventor.components.runtime.util.FileUtil;
-
-import java.io.*;
+import com.google.appinventor.components.runtime.util.NougatUtil;
+import com.google.appinventor.components.runtime.util.QUtil;
 import java.io.File;
 import java.util.Date;
-import android.Manifest;
+
 /**
- * Camera provides access to the phone's camera
+ * ![Camera icon](images/camera.png)
  *
+ * Use a camera component to take a picture on the phone.
  *
+ * `Camera` is a non-visible component that takes a picture using the device's camera. After the
+ * picture is taken, the path to the file on the phone containing the picture is available as an
+ * argument to the {@link #AfterPicture(String)} event. The path can be used, for example, as the
+ * [`Picture`](userinterface.html#Image.Picture) property of an [`Image`](userinterface.html3Image)
+ * component.
  */
 @DesignerComponent(version = YaVersion.CAMERA_COMPONENT_VERSION,
    description = "A component to take a picture using the device's camera. " +
         "After the picture is taken, the name of the file on the phone " +
         "containing the picture is available as an argument to the " +
         "AfterPicture event. The file name can be used, for example, to set " +
-        "the Picture property of an Image component." +
-           "<p>You can also use Camera to perform a ScreenShot of the screen.",
+        "the Picture property of an Image component.",
    category = ComponentCategory.MEDIA,
    nonVisible = true,
    iconName = "images/camera.png")
 @SimpleObject
-@UsesPermissions(permissionNames = "android.permission.CAMERA,android.permission.WRITE_EXTERNAL_STORAGE, android.permission.READ_EXTERNAL_STORAGE" +
-        ",android.permission.CAMERA")
+@UsesPermissions(permissionNames = "android.permission.WRITE_EXTERNAL_STORAGE, android.permission.READ_EXTERNAL_STORAGE," +
+                 "android.permission.CAMERA")
 public class Camera extends AndroidNonvisibleComponent
-    implements ActivityResultListener, Component, OnDestroyListener, OnStopListener, OnPauseListener {
+    implements ActivityResultListener, Component {
 
-  private static final String CAMERA_INTENT = "android.media.action.IMAGE_CAPTURE";
-  private static final String CAMERA_OUTPUT = "output";
+  private static final String CAMERA_INTENT = MediaStore.ACTION_IMAGE_CAPTURE;
+  private static final String CAMERA_OUTPUT = MediaStore.EXTRA_OUTPUT;
   private final ComponentContainer container;
   private Uri imageFile;
 
   /* Used to identify the call to startActivityForResult. Will be passed back
   into the resultReturned() callback method. */
   private int requestCode;
-  private android.hardware.Camera camera;
-    private boolean enabled = false;
-    private android.hardware.Camera.Parameters cameraParams;
-    private boolean isFlashOn;
-    private String hasFlash=null;
-    private String TAG="CameraComponent";
 
   // whether to open into the front-facing camera
   private boolean useFront;
 
-    // wether or not we have permission to use the camera
-    private boolean havePermission = false;
+  // wether or not we have permission to use the camera
 
-    /**
+  private boolean havePermission = false;
+
+  /**
    * Creates a Camera component.
    *
    * Camera has a boolean option to request the forward-facing camera via an intent extra.
@@ -124,41 +116,37 @@ public class Camera extends AndroidNonvisibleComponent
   }
 
   /**
-   * Takes a picture, then raises the AfterPicture event.
+   * Takes a picture, then raises the {@link #AfterPicture(String)} event.
+   *
+   * @internaldoc
    * If useFront is true, adds an extra to the intent that requests the front-facing camera.
    */
   @SimpleFunction
   public void TakePicture() {
-    Date date = new Date();
+    if (!havePermission) {
+      final Camera me = this;
+      form.askPermission(new BulkPermissionRequest(this, "TakePicture",
+          Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE) {
+        @Override
+        public void onGranted() {
+          me.havePermission = true;
+          me.TakePicture();
+        }
+      });
+      return;
+    }
     String state = Environment.getExternalStorageState();
-      if (!havePermission) {
-          final Camera me = this;
-          form.runOnUiThread(new Runnable() {
-              @Override
-              public void run() {
-                  form.askPermission(Manifest.permission.CAMERA,
-                          new PermissionResultHandler() {
-                              @Override
-                              public void HandlePermissionResponse(String permission, boolean granted) {
-                                  if (granted) {
-                                      me.havePermission = true;
-                                      me.TakePicture();
-                                  } else {
-                                      form.dispatchErrorOccurredEvent(me, "Camera",
-                                              ErrorMessages.ERROR_NO_CAMERA_PERMISSION);
-                                  }
-                              }
-                          });
-              }
-          });
-          return;
-      }
-
     if (Environment.MEDIA_MOUNTED.equals(state)) {
+      Log.i("CameraComponent", "External storage is available and writable");
 
-      imageFile = Uri.fromFile(new File(Environment.getExternalStorageDirectory(),
-        "/Pictures/app_inventor_" + date.getTime()
-        + ".jpg"));
+      File directory = new File(QUtil.getExternalStorageDir(form), "Pictures/");
+      if (!directory.exists()) {
+        directory.mkdir();
+      }
+      File image = new File(QUtil.getExternalStorageDir(form),
+          "Pictures/app_inventor_" + new Date().getTime()
+              + ".jpg");
+      imageFile = Uri.fromFile(image);
 
       ContentValues values = new ContentValues();
       values.put(MediaStore.Images.Media.DATA, imageFile.getPath());
@@ -169,8 +157,13 @@ public class Camera extends AndroidNonvisibleComponent
         requestCode = form.registerForActivityResult(this);
       }
 
-      Uri imageUri = container.$context().getContentResolver().insert(
-        MediaStore.Images.Media.INTERNAL_CONTENT_URI, values);
+      Uri imageUri;
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+        imageUri = container.$context().getContentResolver().insert(
+            MediaStore.Images.Media.INTERNAL_CONTENT_URI, values);
+      } else {
+        imageUri = NougatUtil.getPackageUri(form, image);
+      }
       Intent intent = new Intent(CAMERA_INTENT);
       intent.putExtra(CAMERA_OUTPUT, imageUri);
 
@@ -192,7 +185,8 @@ public class Camera extends AndroidNonvisibleComponent
 
   @Override
   public void resultReturned(int requestCode, int resultCode, Intent data) {
-//    Log.i("CameraComponent", "Returning result. Request code = " + requestCode + ", result code = " + resultCode);
+    Log.i("CameraComponent",
+      "Returning result. Request code = " + requestCode + ", result code = " + resultCode);
     if (requestCode == this.requestCode && resultCode == Activity.RESULT_OK) {
       File image = new File(imageFile.getPath());
       if (image.length() != 0) {
@@ -203,10 +197,11 @@ public class Camera extends AndroidNonvisibleComponent
         // see if something useful got returned in the data
         if (data != null && data.getData() != null) {
           Uri tryImageUri = data.getData();
-//          Log.i("CameraComponent", "Calling Camera.AfterPicture with image path " + tryImageUri.toString());
+          Log.i("CameraComponent", "Calling Camera.AfterPicture with image path "
+              + tryImageUri.toString());
           AfterPicture(tryImageUri.toString());
         } else {
-//          Log.i("CameraComponent", "Couldn't find an image file from the Camera result");
+          Log.i("CameraComponent", "Couldn't find an image file from the Camera result");
           form.dispatchErrorOccurredEvent(this, "TakePicture",
               ErrorMessages.ERROR_CAMERA_NO_IMAGE_RETURNED);
         }
@@ -225,7 +220,7 @@ public class Camera extends AndroidNonvisibleComponent
    */
   private void scanFileToAdd(File image) {
     Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-    Uri contentUri = Uri.fromFile(image);
+    Uri contentUri = NougatUtil.getPackageUri(form, image);
     mediaScanIntent.setData(contentUri);
     container.$context().getApplicationContext().sendBroadcast(mediaScanIntent);
   }
@@ -234,231 +229,22 @@ public class Camera extends AndroidNonvisibleComponent
     File fileToDelete = new File(fileUri.getPath());
     try {
       if (fileToDelete.delete()) {
-//        Log.i("CameraComponent", "Deleted file " + fileUri.toString());
+        Log.i("CameraComponent", "Deleted file " + fileUri.toString());
       } else {
-//        Log.i("CameraComponent", "Could not delete file " + fileUri.toString());
+        Log.i("CameraComponent", "Could not delete file " + fileUri.toString());
       }
     } catch (SecurityException e) {
-      Log.d("CameraComponent", "Got security exception trying to delete file " + fileUri.toString());
+      Log.i("CameraComponent", "Got security exception trying to delete file "
+          + fileUri.toString());
     }
   }
 
   /**
-   * Indicates that a photo was taken with the camera and provides the path to
-   * the stored picture.
+   * Called after the picture is taken. The text argument `image` is the path that can be used to
+   * locate the image on the phone.
    */
   @SimpleEvent
   public void AfterPicture(String image) {
     EventDispatcher.dispatchEvent(this, "AfterPicture", image);
   }
-
-    @SimpleFunction(description = "If enabled, turns flash on. If false and if flash is on, then it will turn it off")
-    public void FlashtOn(boolean enabled) {
-        //If no flashlight, then don't do anything.
-        if (!HasFlash()) {
-            return;
-        }
-
-        if (isFlashOn == enabled) {
-            return;
-        }
-
-        getCamera();
-
-        if (camera == null || cameraParams == null) {
-            return;
-        }
-
-        if (enabled) {
-            turnOnFlash();
-        } else {
-            turnOffFlash();
-        }
-
-    }
-
-    @SimpleFunction(description = "Checks to see if device has flash or not")
-    public boolean HasFlash() {
-        //We only want to do this one time. Using below logic, we ensure that PackageManager is called only once
-        if (hasFlash == null) {
-            hasFlash = String.valueOf(form.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH));
-        }
-
-        boolean temp = Boolean.valueOf(hasFlash);
-
-        return temp;
-    }
-
-    // getting camera parameters
-    private void getCamera() {
-        if (camera == null) {
-            try {
-                camera = android.hardware.Camera.open();
-                cameraParams = camera.getParameters();
-            } catch (RuntimeException e) {
-                Log.e("Camera Error. Failed to Open. Error: ", e.getMessage());
-            }
-        }
-    }
-
-    @Override
-    public void onStop() {
-
-        if (camera != null) {
-            camera.release();
-            camera = null;
-        }
-    }
-
-    @Override
-    public void onPause() {
-        // turn off the flash
-        turnOffFlash();
-    }
-
-    @Override
-    public void onDestroy() {
-        // turn off the flash
-        turnOffFlash();
-    }
-
-    // Turning On flash
-    private void turnOnFlash() {
-        try {
-            if (!isFlashOn) {
-                camera = android.hardware.Camera.open();
-                android.hardware.Camera.Parameters cameraParams = camera.getParameters();
-                cameraParams.setFlashMode(android.hardware.Camera.Parameters.FLASH_MODE_TORCH);
-                camera.setParameters(cameraParams);
-
-                SurfaceTexture mPreviewTexture = new SurfaceTexture(0);
-                camera.setPreviewTexture(mPreviewTexture);
-
-            camera.startPreview();
-                this.isFlashOn = true;
-        }
-        } catch (Exception e) {
-           // no-op
-        }
-
-    }
-
-    // Turning Off flash
-    private void turnOffFlash() {
-        try {
-        if (isFlashOn) {
-            camera.stopPreview();
-                camera.release();
-                camera = null;
-            isFlashOn = false;
-        }
-        } catch (Exception e) {
-            // no-op;
-        }
-    }
-
-    //http://www.truiton.com/2013/03/android-take-screenshot-programmatically-and-send-email/
-    @SimpleFunction(description = "Allows you to screenshot the device screen and save into a file. " +
-            "Currently, only .jpg extension is supported. Please make sure that your imageName ends " +
-            "with .jpg")
-    public void TakeScreenshot(String imageName) {
-        imageName=imageName.trim();
-
-        //If image name doesn't end with .jpg, then error and return
-        if (!(imageName.toLowerCase().endsWith(".jpg") || imageName.toLowerCase().endsWith(".png") )) {
-            form.dispatchErrorOccurredEvent(this, "TakeScreenshot",
-                    ErrorMessages.ERROR_MEDIA_IMAGE_FILE_FORMAT);
-            return;
-        }
-//        String saveasFileName = imageName.equals("")?DEFAULT_CAPTURE_FILE_NAME:imageName;
-
-//        Log.d(TAG, "Trying to screenshot with image name of: " + imageName);
-        String state = Environment.getExternalStorageState();
-        if (!Environment.MEDIA_MOUNTED.equals(state)) {
-            if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
-                form.dispatchErrorOccurredEvent(this, "TakeScreenshot",
-                        ErrorMessages.ERROR_MEDIA_EXTERNAL_STORAGE_READONLY);
-            } else {
-                form.dispatchErrorOccurredEvent(this, "TakeScreenshot",
-                        ErrorMessages.ERROR_MEDIA_EXTERNAL_STORAGE_NOT_AVAILABLE);
-            }
-//            Log.d(TAG, "Media error for for " + imageName);
-
-            return ;
-        }
-
-        Bitmap bitmap;
-        Bitmap.CompressFormat format;
-        View v1 = container.$context().getWindow().getDecorView();
-        v1.setDrawingCacheEnabled(true);
-        bitmap = Bitmap.createBitmap(v1.getDrawingCache());
-        v1.setDrawingCacheEnabled(false);
-
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-
-        if (imageName.toLowerCase().endsWith(".jpg")) {
-            format = Bitmap.CompressFormat.JPEG;
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 70, bytes);
-        } else {
-            format = Bitmap.CompressFormat.PNG;
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-        }
-
-        try {
-
-            java.io.File file = FileUtil.getExternalFile(imageName);
-            String savedImageName = saveFile(file, format, "SaveAs");
-
-            if (savedImageName.equals("")) {
-                //something went wrong in saving the file
-                form.dispatchErrorOccurredEvent(this, "TakeScreenshot", ErrorMessages.ERROR_MEDIA_FILE_ERROR);
-            } else {
-                AfterTakeScreenshot(savedImageName);
-            }
-//            savedImageName = saveFile(file, format, "SaveAs");
-//            return !savedImageName.equals("");
-        } catch (IOException e) {
-            form.dispatchErrorOccurredEvent(this, "TakeScreenshot", ErrorMessages.ERROR_MEDIA_FILE_ERROR);
-        }
-    }
-
-    @SimpleEvent
-    public void AfterTakeScreenshot(String imageName) {
-        EventDispatcher.dispatchEvent(this, "AfterTakeScreenshot", imageName);
-    }
-
-    // Helper method for Save and SaveAs
-    private String saveFile(java.io.File file, Bitmap.CompressFormat format, String method) {
-        try {
-            boolean success = false;
-            FileOutputStream fos = new FileOutputStream(file);
-            // Don't cache, in order to save memory.  It seems unlikely to be used again soon.
-            View v1 = container.$context().getWindow().getDecorView();
-            v1.setDrawingCacheEnabled(true);
-            v1.setDrawingCacheEnabled(false);
-            v1.setDrawingCacheEnabled(true);
-            Bitmap bitmap = Bitmap.createBitmap(v1.getDrawingCache());
-            v1.setDrawingCacheEnabled(false);
-
-            try {
-                success = bitmap.compress(format,
-                        100,  // quality: ignored for png
-                        fos);
-            } finally {
-                fos.close();
-            }
-            if (success) {
-                return file.getAbsolutePath();
-            } else {
-                container.$form().dispatchErrorOccurredEvent(this, method, ErrorMessages.ERROR_CANVAS_BITMAP_ERROR);
-            }
-        } catch (FileNotFoundException e) {
-            container.$form().dispatchErrorOccurredEvent(this, method, ErrorMessages.ERROR_MEDIA_CANNOT_OPEN, file.getAbsolutePath());
-        } catch (IOException e) {
-            container.$form().dispatchErrorOccurredEvent(this, method,
-                    ErrorMessages.ERROR_MEDIA_FILE_ERROR, e.getMessage());
-        }
-        return "";
-    }
-
 }

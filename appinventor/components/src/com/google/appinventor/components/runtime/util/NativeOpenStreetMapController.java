@@ -1,10 +1,49 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright © 2016-2017 Massachusetts Institute of Technology, All rights reserved.
+// Copyright © 2016-2020 Massachusetts Institute of Technology, All rights reserved.
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime.util;
 
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Picture;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.PictureDrawable;
+import android.location.Location;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.animation.Animation;
+import android.widget.RelativeLayout;
+import androidx.core.view.ViewCompat;
+import com.caverock.androidsvg.SVG;
+import com.caverock.androidsvg.SVGParseException;
+import com.google.appinventor.components.common.ComponentConstants;
+import com.google.appinventor.components.runtime.Form;
+import com.google.appinventor.components.runtime.LocationSensor;
+import com.google.appinventor.components.runtime.util.MapFactory.HasFill;
+import com.google.appinventor.components.runtime.util.MapFactory.HasStroke;
+import com.google.appinventor.components.runtime.util.MapFactory.MapCircle;
+import com.google.appinventor.components.runtime.util.MapFactory.MapController;
+import com.google.appinventor.components.runtime.util.MapFactory.MapEventListener;
+import com.google.appinventor.components.runtime.util.MapFactory.MapFeature;
+import com.google.appinventor.components.runtime.util.MapFactory.MapFeatureCollection;
+import com.google.appinventor.components.runtime.util.MapFactory.MapLineString;
+import com.google.appinventor.components.runtime.util.MapFactory.MapMarker;
+import com.google.appinventor.components.runtime.util.MapFactory.MapPolygon;
+import com.google.appinventor.components.runtime.util.MapFactory.MapRectangle;
+import com.google.appinventor.components.runtime.util.MapFactory.MapScaleUnits;
+import com.google.appinventor.components.runtime.util.MapFactory.MapType;
+import com.google.appinventor.components.runtime.view.ZoomControlView;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,22 +55,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import android.graphics.drawable.PictureDrawable;
-import android.location.Location;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
-import android.support.v4.view.ViewCompat;
-import android.util.DisplayMetrics;
-import com.google.appinventor.components.common.ComponentConstants;
-import com.google.appinventor.components.runtime.LocationSensor;
 import org.osmdroid.api.IGeoPoint;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.events.MapListener;
 import org.osmdroid.events.ScrollEvent;
 import org.osmdroid.events.ZoomEvent;
 import org.osmdroid.tileprovider.MapTile;
+import org.osmdroid.tileprovider.constants.OpenStreetMapTileProviderConstants;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.BoundingBox;
 import org.osmdroid.util.GeoPoint;
@@ -45,38 +75,15 @@ import org.osmdroid.views.overlay.OverlayWithIW;
 import org.osmdroid.views.overlay.OverlayWithIWVisitor;
 import org.osmdroid.views.overlay.Polygon;
 import org.osmdroid.views.overlay.Polyline;
+import org.osmdroid.views.overlay.ScaleBarOverlay;
+import org.osmdroid.views.overlay.ScaleBarOverlay.UnitsOfMeasure;
 import org.osmdroid.views.overlay.compass.CompassOverlay;
+import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 import org.osmdroid.views.overlay.infowindow.OverlayInfoWindow;
 import org.osmdroid.views.overlay.mylocation.IMyLocationConsumer;
 import org.osmdroid.views.overlay.mylocation.IMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
-
-import com.caverock.androidsvg.SVG;
-import com.caverock.androidsvg.SVGParseException;
-import com.google.appinventor.components.runtime.Form;
-import com.google.appinventor.components.runtime.util.MapFactory.HasFill;
-import com.google.appinventor.components.runtime.util.MapFactory.HasStroke;
-import com.google.appinventor.components.runtime.util.MapFactory.MapCircle;
-import com.google.appinventor.components.runtime.util.MapFactory.MapController;
-import com.google.appinventor.components.runtime.util.MapFactory.MapEventListener;
-import com.google.appinventor.components.runtime.util.MapFactory.MapFeature;
-import com.google.appinventor.components.runtime.util.MapFactory.MapMarker;
-import com.google.appinventor.components.runtime.util.MapFactory.MapPolygon;
-import com.google.appinventor.components.runtime.util.MapFactory.MapRectangle;
-import com.google.appinventor.components.runtime.util.MapFactory.MapLineString;
-import com.google.appinventor.components.runtime.util.MapFactory.MapType;
-
-import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Picture;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.util.Log;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.animation.Animation;
 
 class NativeOpenStreetMapController implements MapController, MapListener {
   /* copied from SVG */
@@ -90,6 +97,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   private static final String TAG = NativeOpenStreetMapController.class.getSimpleName();
   private boolean caches;
   private final Form form;
+  private RelativeLayout containerView;
   private MapView view;
   private MapType tileType;
   private boolean zoomEnabled;
@@ -103,9 +111,27 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   private TouchOverlay touch = null;
   private OverlayInfoWindow defaultInfoWindow = null;
   private boolean ready = false;
+  private ZoomControlView zoomControls = null;
+  private float lastAzimuth = Float.NaN;
+  private ScaleBarOverlay scaleBar;
+
+  /**
+   * This set stores feature collections that are hidden (Visible = False).
+   */
+  private Set<MapFeatureCollection> hiddenFeatureCollections = new HashSet<>();
+
+  /**
+   * This set stores the features contained within feature collections captured by
+   * {@link #hiddenFeatureCollections}. This is used to test whether the features should be
+   * displayed when toggling their Visible property.
+   */
+  private Set<MapFeature> hiddenFeatures = new HashSet<>();
+
+  private static final float[] ANCHOR_HORIZONTAL = { Float.NaN, 0.0f, 1.0f, 0.5f };
+  private static final float[] ANCHOR_VERTICAL = { Float.NaN, 0.0f, 0.5f, 1.0f };
 
   private static class AppInventorLocationSensorAdapter implements IMyLocationProvider,
-          LocationSensor.LocationSensorListener {
+      LocationSensor.LocationSensorListener {
     private LocationSensor source;
     private Location lastLocation;
     private IMyLocationConsumer consumer;
@@ -253,6 +279,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   private final AppInventorLocationSensorAdapter locationProvider;
 
   NativeOpenStreetMapController(final Form form) {
+    OpenStreetMapTileProviderConstants.setUserAgentValue(form.getApplication().getPackageName());
     File osmdroid = new File(form.getCacheDir(), "osmdroid");
     if (osmdroid.exists() || osmdroid.mkdirs()) {
       Configuration.getInstance().setOsmdroidBasePath(osmdroid);
@@ -285,12 +312,24 @@ class NativeOpenStreetMapController implements MapController, MapListener {
         }
       }
     });
+    zoomControls = new ZoomControlView(view);
     userLocation = new MyLocationNewOverlay(locationProvider, view);
+    scaleBar = new ScaleBarOverlay(view);
+    scaleBar.setAlignBottom(true);
+    scaleBar.setAlignRight(true);
+    scaleBar.disableScaleBar();
+    view.getOverlayManager().add(scaleBar);
+
+    containerView = new RelativeLayout(form);
+    containerView.setClipChildren(true);
+    containerView.addView(view, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    containerView.addView(zoomControls);
+    zoomControls.setVisibility(View.GONE);  // not shown by default
   }
 
   @Override
   public View getView() {
-    return view;
+    return containerView;
   }
 
   @Override
@@ -311,11 +350,14 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   @Override
   public void setZoom(int zoom) {
     view.getController().setZoom((double) zoom);
+    zoomControls.updateButtons();
   }
 
   @Override
   public int getZoom() {
-    return (int) view.getZoomLevel(false);
+    // We pass pending as true here so that when a user sets ZoomLevel
+    // and then reads it back it should be reflected.
+    return (int) view.getZoomLevel(true);
   }
 
   @Override
@@ -359,12 +401,26 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   public void setCompassEnabled(boolean enabled) {
     if (enabled && compass == null) {
       compass = new CompassOverlay(view.getContext(), view);
+      view.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+        @Override
+        public boolean onPreDraw() {
+          float density = view.getContext().getResources().getDisplayMetrics().density;
+          compass.setCompassCenter(view.getMeasuredWidth() / density - 35, 35);
+          return true;
+        }
+      });
       view.getOverlayManager().add(compass);
     }
     if (compass != null) {
       if (enabled) {
-        compass.enableCompass();
+        if (compass.getOrientationProvider() != null) {
+          compass.enableCompass();
+        } else {
+          compass.enableCompass(new InternalCompassOrientationProvider(view.getContext()));
+        }
+        compass.onOrientationChanged(lastAzimuth, null);
       } else {
+        lastAzimuth = compass.getOrientation();
         compass.disableCompass();
       }
     }
@@ -372,13 +428,16 @@ class NativeOpenStreetMapController implements MapController, MapListener {
 
   @Override
   public boolean isCompassEnabled() {
-    return compass != null && compass.isEnabled();
+    return compass != null && compass.isCompassEnabled();
   }
 
   @Override
   public void setZoomControlEnabled(boolean enabled) {
-    view.setBuiltInZoomControls(enabled);
-    zoomControlEnabled = enabled;
+    if (zoomControlEnabled != enabled) {
+      zoomControls.setVisibility(enabled ? View.VISIBLE : View.GONE);
+      zoomControlEnabled = enabled;
+      containerView.invalidate();
+    }
   }
 
   @Override
@@ -447,9 +506,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   @Override
   public void addEventListener(MapEventListener listener) {
     eventListeners.add(listener);
-    if ((ready
-//            || ViewCompat.isAttachedToWindow(view)) && form.canDispatchEvent(null, "MapReady"
-    )) {
+    if ((ready || ViewCompat.isAttachedToWindow(view)) && form.canDispatchEvent(null, "MapReady")) {
       ready = true;
       listener.onReady(this);
     }
@@ -636,10 +693,8 @@ class NativeOpenStreetMapController implements MapController, MapListener {
           }
           ((MapRectangle) component).updateBounds(north, west, south, east);
         } else {
-          ((MapPolygon) component).updatePoints(Collections.singletonList(polygon.getPoints()));
-          List<List<GeoPoint>> holes = new ArrayList<List<GeoPoint>>();
-          holes.addAll(polygon.getHoles());
-          ((MapPolygon) component).updateHolePoints(Collections.singletonList(holes));
+          ((MapPolygon) component).updatePoints(((MultiPolygon) polygon).getMultiPoints());
+          ((MapPolygon) component).updateHolePoints(((MultiPolygon) polygon).getMultiHoles());
         }
         for (MapEventListener listener : eventListeners) {
           listener.onFeatureStopDrag(component);
@@ -678,6 +733,8 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   public void updateFeaturePosition(MapMarker aiMarker) {
     Marker marker = (Marker)featureOverlays.get(aiMarker);
     if (marker != null) {
+      marker.setAnchor(ANCHOR_HORIZONTAL[aiMarker.AnchorHorizontal()],
+          ANCHOR_VERTICAL[aiMarker.AnchorVertical()]);
       marker.setPosition(new GeoPoint(aiMarker.Latitude(), aiMarker.Longitude()));
       view.invalidate();
     }
@@ -697,6 +754,14 @@ class NativeOpenStreetMapController implements MapController, MapListener {
     MultiPolygon polygon = (MultiPolygon) featureOverlays.get(aiPolygon);
     if (polygon != null) {
       polygon.setMultiPoints(aiPolygon.getPoints());
+      view.invalidate();
+    }
+  }
+
+  @Override
+  public void updateFeatureHoles(MapPolygon aiPolygon) {
+    MultiPolygon polygon = (MultiPolygon) featureOverlays.get(aiPolygon);
+    if (polygon != null) {
       polygon.setMultiHoles(aiPolygon.getHolePoints());
       view.invalidate();
     }
@@ -719,7 +784,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
     Polygon polygon = (Polygon) featureOverlays.get(aiRectangle);
     if (polygon != null) {
       List<GeoPoint> geopoints = (List) Polygon.pointsAsRect(new BoundingBox(aiRectangle.NorthLatitude(),
-              aiRectangle.EastLongitude(), aiRectangle.SouthLatitude(), aiRectangle.WestLongitude()));
+          aiRectangle.EastLongitude(), aiRectangle.SouthLatitude(), aiRectangle.WestLongitude()));
       polygon.setPoints(geopoints);
       view.invalidate();
     }
@@ -863,7 +928,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   }
 
   private void getMarkerDrawable(final MapMarker aiMarker,
-                                 final AsyncCallbackPair<Drawable> callback) {
+      final AsyncCallbackPair<Drawable> callback) {
     final String assetPath = aiMarker.ImageAsset();
     if (assetPath == null || assetPath.length() == 0 || assetPath.endsWith(".svg")) {
       getMarkerDrawableVector(aiMarker, callback);
@@ -873,11 +938,11 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   }
 
   private void getMarkerDrawableVector(MapMarker aiMarker,
-                                       AsyncCallbackPair<Drawable> callback) {
+      AsyncCallbackPair<Drawable> callback) {
     SVG markerSvg = null;
     if (defaultMarkerSVG == null) {
       try {
-        defaultMarkerSVG = SVG.getFromAsset(view.getContext().getAssets(), "component/marker.svg");
+        defaultMarkerSVG = SVG.getFromAsset(view.getContext().getAssets(), "marker.svg");
       } catch (SVGParseException e) {
         Log.e(TAG, "Invalid SVG in Marker asset", e);
       } catch (IOException e) {
@@ -922,19 +987,20 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   }
 
   private void getMarkerDrawableRaster(final MapMarker aiMarker,
-                                       final AsyncCallbackPair<Drawable> callback) {
+      final AsyncCallbackPair<Drawable> callback) {
     MediaUtil.getBitmapDrawableAsync(form, aiMarker.ImageAsset(),
-            new AsyncCallbackPair<BitmapDrawable>() {
-              @Override
-              public void onFailure(String message) {
-                callback.onSuccess(getDefaultMarkerDrawable(aiMarker));
-              }
+        new AsyncCallbackPair<BitmapDrawable>() {
+      @Override
+      public void onFailure(String message) {
+        callback.onSuccess(getDefaultMarkerDrawable(aiMarker));
+      }
 
-              @Override
-              public void onSuccess(BitmapDrawable result) {
-                callback.onSuccess(result);
-              }
-            });
+      @Override
+      public void onSuccess(BitmapDrawable result) {
+        result.setAlpha((int) Math.round(aiMarker.FillOpacity() * 255.0f));
+        callback.onSuccess(result);
+      }
+    });
   }
 
   private Drawable getDefaultMarkerDrawable(MapMarker aiMarker) {
@@ -984,6 +1050,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
         path.baseStyle.stroke = new SVG.Colour(strokePaint.getColor());
         path.baseStyle.strokeOpacity = strokePaint.getAlpha()/255.0f;
         path.baseStyle.strokeWidth = strokeWidth;
+        path.baseStyle.specifiedFlags = 0x3d;
         if (path.style != null) {
           if ((path.style.specifiedFlags & SPECIFIED_FILL) == 0) {
             path.style.fill = new SVG.Colour(fillPaint.getColor());
@@ -1013,7 +1080,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
     Picture picture = markerSvg.renderToPicture();
     Picture scaledPicture = new Picture();
     Canvas canvas = scaledPicture.beginRecording((int)((width + 2.0f * aiMarker.StrokeWidth()) * density),
-            (int)((height + 2.0f * aiMarker.StrokeWidth()) * density));
+        (int)((height + 2.0f * aiMarker.StrokeWidth()) * density));
     canvas.scale(density * scaleW, density * scaleH);
     canvas.translate(strokeWidth.floatValue(), strokeWidth.floatValue());
     picture.draw(canvas);
@@ -1022,7 +1089,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
   }
 
   private void createNativeMarker(final MapMarker aiMarker,
-                                  AsyncCallbackPair<Marker> callback) {
+      AsyncCallbackPair<Marker> callback) {
     final Marker osmMarker = new Marker(view);
     featureOverlays.put(aiMarker, osmMarker);
     osmMarker.setDraggable(aiMarker.Draggable());
@@ -1083,7 +1150,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
 
   private Polygon createNativeRectangle(final MapRectangle aiRectangle) {
     BoundingBox bbox = new BoundingBox(aiRectangle.NorthLatitude(), aiRectangle.EastLongitude(),
-            aiRectangle.SouthLatitude(), aiRectangle.WestLongitude());
+        aiRectangle.SouthLatitude(), aiRectangle.WestLongitude());
     final Polygon osmPolygon = new Polygon();
     createPolygon(osmPolygon, aiRectangle);
     osmPolygon.setPoints(new ArrayList<GeoPoint>((List) Polygon.pointsAsRect(bbox)));
@@ -1092,11 +1159,14 @@ class NativeOpenStreetMapController implements MapController, MapListener {
 
   @Override
   public void showFeature(MapFeature feature) {
-    showOverlay(featureOverlays.get(feature));
+    if (!hiddenFeatures.contains(feature)) {
+      showOverlay(featureOverlays.get(feature));
+    }
   }
 
   protected void showOverlay(OverlayWithIW overlay) {
     view.getOverlayManager().add(overlay);
+    view.invalidate();
   }
 
   @Override
@@ -1106,12 +1176,42 @@ class NativeOpenStreetMapController implements MapController, MapListener {
 
   protected void hideOverlay(OverlayWithIW overlay) {
     view.getOverlayManager().remove(overlay);
+    view.invalidate();
   }
 
   @Override
   public boolean isFeatureVisible(MapFeature feature) {
     OverlayWithIW overlay = featureOverlays.get(feature);
     return overlay != null && view.getOverlayManager().contains(overlay);
+  }
+
+  @Override
+  public boolean isFeatureCollectionVisible(MapFeatureCollection collection) {
+    return !hiddenFeatureCollections.contains(collection);
+  }
+
+  @Override
+  public void setFeatureCollectionVisible(MapFeatureCollection collection, boolean visible) {
+    if ((!visible && hiddenFeatureCollections.contains(collection))
+        || (visible && !hiddenFeatureCollections.contains(collection))) {
+      // Nothing to do
+      return;
+    }
+    if (visible) {
+      hiddenFeatureCollections.remove(collection);
+      for (MapFeature feature : collection) {
+        hiddenFeatures.remove(feature);
+        if (feature.Visible()) {
+          showFeature(feature);
+        }
+      }
+    } else {
+      hiddenFeatureCollections.add(collection);
+      for (MapFeature feature : collection) {
+        hiddenFeatures.add(feature);
+        hideFeature(feature);
+      }
+    }
   }
 
   @Override
@@ -1153,6 +1253,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
 
   @Override
   public boolean onZoom(ZoomEvent event) {
+    zoomControls.updateButtons();
     for (MapEventListener listener : eventListeners) {
       listener.onZoom();
     }
@@ -1180,6 +1281,44 @@ class NativeOpenStreetMapController implements MapController, MapListener {
     return view.getMapOrientation();
   }
 
+  @Override
+  public void setScaleVisible(boolean show) {
+    scaleBar.setEnabled(show);
+    view.invalidate();
+  }
+
+  @Override
+  public boolean isScaleVisible() {
+    return scaleBar.isEnabled();
+  }
+
+  @Override
+  public void setScaleUnits(MapScaleUnits units) {
+    switch (units) {
+      case METRIC:
+        scaleBar.setUnitsOfMeasure(UnitsOfMeasure.metric);
+        break;
+      case IMPERIAL:
+        scaleBar.setUnitsOfMeasure(UnitsOfMeasure.imperial);
+        break;
+      default:
+        throw new IllegalArgumentException("Unallowable unit system: " + units);
+    }
+    view.invalidate();
+  }
+
+  @Override
+  public MapScaleUnits getScaleUnits() {
+    switch (scaleBar.getUnitsOfMeasure()) {
+      case imperial:
+        return MapScaleUnits.IMPERIAL;
+      case metric:
+        return MapScaleUnits.METRIC;
+      default:
+        throw new IllegalStateException("Somehow we have an unallowed unit system");
+    }
+  }
+
   static class MultiPolygon extends Polygon {
 
     private List<Polygon> children = new ArrayList<Polygon>();
@@ -1199,6 +1338,14 @@ class NativeOpenStreetMapController implements MapController, MapListener {
       for (Polygon child : children) {
         child.draw(canvas, mapView, b);
       }
+    }
+
+    public List<List<GeoPoint>> getMultiPoints() {
+      List<List<GeoPoint>> result = new ArrayList<>();
+      for (Polygon p : children) {
+        result.add(p.getPoints());
+      }
+      return result;
     }
 
     public void setMultiPoints(List<List<GeoPoint>> points) {
@@ -1223,6 +1370,15 @@ class NativeOpenStreetMapController implements MapController, MapListener {
         p.setOnDragListener(dragListener);
         children.add(p);
       }
+    }
+
+    @SuppressWarnings("unchecked")  // upcasting nested ArrayList to List
+    public List<List<List<GeoPoint>>> getMultiHoles() {
+      List<List<List<GeoPoint>>> result = new ArrayList<>();
+      for (Polygon p : children) {
+        result.add((List) p.getHoles());
+      }
+      return result;
     }
 
     public void setMultiHoles(List<List<List<GeoPoint>>> holes) {
@@ -1342,8 +1498,8 @@ class NativeOpenStreetMapController implements MapController, MapListener {
           moveToEventPosition(event, mDragStartPoint, mapView);
         } else if (mOnClickListener != null) {
           mOnClickListener.onLongClick( this, mapView,
-                  (GeoPoint) mapView.getProjection().fromPixels( (int) event.getX(),
-                          (int) event.getY() ) );
+              (GeoPoint) mapView.getProjection().fromPixels( (int) event.getX(),
+                  (int) event.getY() ) );
         }
       }
       return touched;
@@ -1351,7 +1507,7 @@ class NativeOpenStreetMapController implements MapController, MapListener {
 
     @Override
     public void moveToEventPosition(final MotionEvent event, final MotionEvent start,
-                                    final MapView view) {
+        final MapView view) {
       for (Polygon child : children) {
         child.moveToEventPosition(event, start, view);
       }

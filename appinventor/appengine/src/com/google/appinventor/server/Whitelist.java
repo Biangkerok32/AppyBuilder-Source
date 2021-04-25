@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -54,7 +51,7 @@ public class Whitelist {
     @Override
     public boolean equals(Object other) {
       boolean result = (other instanceof EmailAddress) &&
-              ((EmailAddress) other).email.equalsIgnoreCase(email);
+          ((EmailAddress) other).email.equalsIgnoreCase(email);
       return result;
     }
 
@@ -80,19 +77,19 @@ public class Whitelist {
 
   Whitelist() {
     validWhitelist = false;
-      try {
+    try {
       parseToAddresses(new CsvParser(new FileInputStream(pathToWhitelist)));
-        if (addresses.size() == 0) {
-          LOG.severe("Whitelist file contained no entries.");
-        } else {
-          if (DEBUG) {
-            logWhitelistContents();
-          }
-          validWhitelist = true;
+      if (addresses.size() == 0) {
+        LOG.severe("Whitelist file contained no entries.");
+      } else {
+        if (DEBUG) {
+          logWhitelistContents();
         }
-      } catch (FileNotFoundException e) {
-        LOG.severe("No whitelist found.");
-      } catch (SecurityException e) {
+        validWhitelist = true;
+      }
+    } catch (FileNotFoundException e) {
+      LOG.severe("No whitelist found.");
+    } catch (SecurityException e) {
       LOG.severe("Whitelist found, but wrong permission.");
     }
   }
@@ -107,7 +104,7 @@ public class Whitelist {
     boolean found = addresses.contains(new EmailAddress(user.getUserEmail()));
     if (!found) {
       LOG.info("User with email address " + user.getUserEmail() +
-              " was not found in the whitelist");
+          " was not found in the whitelist");
     }
     return found;
   }
@@ -153,4 +150,4 @@ public class Whitelist {
       addresses.add(new EmailAddress(address));
     }
   }
-  }
+}

@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -23,7 +20,6 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServletRequest;
@@ -39,13 +35,12 @@ public class UploadServlet extends OdeServlet {
    * URIs for upload requests are structured as follows:
    *    /<baseurl>/upload/project/<projectname>}
    *    /<baseurl>/upload/file/<projectId>/<filePath>
-   *    /<baseurl>/upload/screen/<projectId>/<filePath>
    *    /<baseurl>/upload/userfile/<filePath>
    */
 
   // Constants for accessing split URI
   /*
-   * Upload kind can be: "project", "file", "screen", or "userfile".
+   * Upload kind can be: "project", "file", or "userfile".
    * Constants for these are defined in ServerLayout.
    */
   private static final int UPLOAD_KIND_INDEX = 3;
@@ -54,26 +49,12 @@ public class UploadServlet extends OdeServlet {
   private static final int PROJECT_TITLE_INDEX = 4;
   private static final int SPLIT_LIMIT_PROJECT_SOURCE = 5;
 
-  // Constants used when upload kind is "file/screen".
+  // Constants used when upload kind is "file".
   // Since the file path may contain slashes, it must be the last component in the URI.
-  // todo: works:
   private static final int PROJECT_ID_INDEX = 4;
-  //
-  /*
-  PROJECT_NAME_INDEX, was 7, testing with 5. Seems to work
-  URI will be in format of:
-  /ode/upload/screen/4785074604081152/foo2/breakingnews_Screen1
-  We could try to get size and and just extract last index. Not sure why they are doing this approach
-   */
-  private static final int PROJECT_NAME_INDEX = 5;
   private static final int FILE_PATH_INDEX = 5;
   private static final int SPLIT_LIMIT_FILE = 6;
 
-  // todo: Doesn't work - DO NOT USE THESE NUMBERS THAT WERE TAKEN FROM PUNYA
-//  private static final int PROJECT_ID_INDEX = 4;
-//  private static final int PROJECT_NAME_INDEX = 5;
-//  private static final int FILE_PATH_INDEX = 6;
-//  private static final int SPLIT_LIMIT_FILE = 7;
   // Constants used when upload kind is "userfile".
   // Since the file path may contain slashes, it must be the last component in the URI.
   private static final int USERFILE_PATH_INDEX = 4;
@@ -104,10 +85,8 @@ public class UploadServlet extends OdeServlet {
 
     try {
       String uri = req.getRequestURI();
-      // LOG.info("The URI is " + uri);
       // First, call split with no limit parameter.
       String[] uriComponents = uri.split("/");
-      // LOG.info("The URI components are " + Arrays.toString(uriComponents));
       String uploadKind = uriComponents[UPLOAD_KIND_INDEX];
 
       if (uploadKind.equals(ServerLayout.UPLOAD_PROJECT)) {
@@ -123,26 +102,6 @@ public class UploadServlet extends OdeServlet {
         try {
           UserProject userProject = fileImporter.importProject(userInfoProvider.getUserId(),
               projectName, uploadedStream);
-          String info = userProject.toString();
-          uploadResponse = new UploadResponse(UploadResponse.Status.SUCCESS, 0, info);
-        } catch (FileImporterException e) {
-          uploadResponse = e.uploadResponse;
-        }
-      } else if (uploadKind.equals(ServerLayout.UPLOAD_SCREEN)) {
-        uriComponents = uri.split("/", SPLIT_LIMIT_FILE);
-        long projectId = Long.parseLong(uriComponents[PROJECT_ID_INDEX]);
-        //LOG.info("2 The URI components are " + Arrays.toString(uriComponents));
-        String projectName = uriComponents[PROJECT_NAME_INDEX];
-        // String fileName = uriComponents[FILE_PATH_INDEX];
-        InputStream uploadedStream;
-        try {
-          uploadedStream = getRequestStream(req, ServerLayout.UPLOAD_PROJECT_SCREEN_FORM_ELEMENT);
-        } catch (Exception e) {
-          throw CrashReport.createAndLogError(LOG, req, null, e);
-        }
-        try {
-          UserProject userProject = fileImporter.importProjectScreen(userInfoProvider.getUserId(),
-          		projectId, projectName, uploadedStream);
           String info = userProject.toString();
           uploadResponse = new UploadResponse(UploadResponse.Status.SUCCESS, 0, info);
         } catch (FileImporterException e) {

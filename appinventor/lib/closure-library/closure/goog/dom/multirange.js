@@ -64,13 +64,13 @@ goog.dom.MultiRange = function() {
 
   /**
    * Lazily computed sorted version of ranges_, sorted by start point.
-   * @private {Array<goog.dom.TextRange>?}
+   * @private {Array<?goog.dom.TextRange>?}
    */
   this.sortedRanges_ = null;
 
   /**
    * Lazily computed container node.
-   * @private {Node}
+   * @private {?Node}
    */
   this.container_ = null;
 };
@@ -423,7 +423,7 @@ goog.dom.DomSavedMultiRange_.prototype.disposeInternal = function() {
 goog.dom.MultiRangeIterator = function(range) {
   /**
    * The list of range iterators left to traverse.
-   * @private {Array<goog.dom.RangeIterator>}
+   * @private {?Array<?goog.dom.RangeIterator>}
    */
   this.iterators_ = null;
 
@@ -477,7 +477,7 @@ goog.dom.MultiRangeIterator.prototype.isLast = function() {
 
 /** @override */
 goog.dom.MultiRangeIterator.prototype.next = function() {
-  /** @preserveTry */
+
   try {
     var it = this.iterators_[this.currentIdx_];
     var next = it.next();

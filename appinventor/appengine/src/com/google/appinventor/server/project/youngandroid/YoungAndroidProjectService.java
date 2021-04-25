@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -17,6 +14,9 @@ import com.google.appinventor.components.common.YaVersion;
 import com.google.appinventor.server.CrashReport;
 import com.google.appinventor.server.FileExporter;
 import com.google.appinventor.server.FileExporterImpl;
+import com.google.appinventor.server.FileImporter;
+import com.google.appinventor.server.FileImporterException;
+import com.google.appinventor.server.FileImporterImpl;
 import com.google.appinventor.server.Server;
 import com.google.appinventor.server.encryption.EncryptionException;
 import com.google.appinventor.server.flags.Flag;
@@ -24,6 +24,7 @@ import com.google.appinventor.server.project.CommonProjectService;
 import com.google.appinventor.server.project.utils.Security;
 import com.google.appinventor.server.properties.json.ServerJsonParser;
 import com.google.appinventor.server.storage.StorageIo;
+import com.google.appinventor.server.util.UriBuilder;
 import com.google.appinventor.shared.properties.json.JSONParser;
 import com.google.appinventor.shared.rpc.RpcResult;
 import com.google.appinventor.shared.rpc.ServerLayout;
@@ -34,6 +35,7 @@ import com.google.appinventor.shared.rpc.project.ProjectRootNode;
 import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.RawFile;
 import com.google.appinventor.shared.rpc.project.TextFile;
+import com.google.appinventor.shared.rpc.project.UserProject;
 import com.google.appinventor.shared.rpc.project.youngandroid.NewYoungAndroidProjectParameters;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidAssetNode;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidAssetsFolder;
@@ -55,21 +57,28 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.io.CharStreams;
+import java.util.Locale;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.text.DateFormat;
-import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 
 /**
@@ -80,12 +89,17 @@ import java.util.logging.Logger;
  */
 public final class YoungAndroidProjectService extends CommonProjectService {
 
-  private static int currentProgress = 0;
   private static final Logger LOG = Logger.getLogger(YoungAndroidProjectService.class.getName());
+  private static final int MB = 1024 * 1024;
 
   // The value of this flag can be changed in appengine-web.xml
   private static final Flag<Boolean> sendGitVersion =
     Flag.createFlag("build.send.git.version", true);
+
+  private static final Flag<Integer> MAX_PROJECT_SIZE =
+      Flag.createFlag("project.maxsize", 30);
+  private static final String ERROR_LARGE_PROJECT =
+      "Sorry, can't package projects larger than %1$d MB. Yours is %2$3.2f MB.";
 
   // Project folder prefixes
   public static final String SRC_FOLDER = YoungAndroidSourceAnalyzer.SRC_FOLDER;
@@ -116,10 +130,16 @@ public final class YoungAndroidProjectService extends CommonProjectService {
   // host[:port] to use for connecting to the build server
   private static final Flag<String> buildServerHost =
       Flag.createFlag("build.server.host", "localhost:9990");
+  // host[:port] to use for connecting to the second build server
+  private static final Flag<String> buildServerHost2 =
+      Flag.createFlag("build2.server.host", "");
   // host[:port] to tell build server app host url
   private static final Flag<String> appengineHost =
       Flag.createFlag("appengine.host", "");
   private static final boolean DEBUG = Flag.createFlag("appinventor.debugging", false).get();
+
+  private static final String galleryLocation = Flag.createFlag("gallery.location", "http://localhost:9001").get();
+  private static final String galleryId = Flag.createFlag("gallery.id", "").get();
 
   public YoungAndroidProjectService(StorageIo storageIo) {
     super(YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE, storageIo);
@@ -129,9 +149,8 @@ public final class YoungAndroidProjectService extends CommonProjectService {
    * Returns project settings that can be used when creating a new project.
    */
   public static String getProjectSettings(String icon, String vCode, String vName,
-    String useslocation, String aName, String sizing, String showListsAsJson, String tutorialURL,
-                                          String applicationPackage, String oneSignalAppId
-            , String minApi, String maxApi) {
+    String useslocation, String aName, String sizing, String showListsAsJson, String tutorialURL, String subsetJSON,
+    String actionBar, String theme, String primaryColor, String primaryColorDark, String accentColor) {
     icon = Strings.nullToEmpty(icon);
     vCode = Strings.nullToEmpty(vCode);
     vName = Strings.nullToEmpty(vName);
@@ -140,12 +159,12 @@ public final class YoungAndroidProjectService extends CommonProjectService {
     aName = Strings.nullToEmpty(aName);
     showListsAsJson = Strings.nullToEmpty(showListsAsJson);
     tutorialURL = Strings.nullToEmpty(tutorialURL);
-    oneSignalAppId = Strings.nullToEmpty(oneSignalAppId);
-    applicationPackage = Strings.nullToEmpty(applicationPackage);
-
-    minApi = Strings.nullToEmpty(minApi);
-    maxApi = Strings.nullToEmpty(maxApi);
-
+    subsetJSON = Strings.nullToEmpty(subsetJSON);
+    actionBar = Strings.nullToEmpty(actionBar);
+    theme = Strings.nullToEmpty(theme);
+    primaryColor = Strings.nullToEmpty(primaryColor);
+    primaryColorDark = Strings.nullToEmpty(primaryColorDark);
+    accentColor = Strings.nullToEmpty(accentColor);
     return "{\"" + SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS + "\":{" +
         "\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_ICON + "\":\"" + icon +
         "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_VERSION_CODE + "\":\"" + vCode +
@@ -155,10 +174,12 @@ public final class YoungAndroidProjectService extends CommonProjectService {
         "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_SIZING + "\":\"" + sizing +
         "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_SHOW_LISTS_AS_JSON + "\":\"" + showListsAsJson +
         "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_TUTORIAL_URL + "\":\"" + tutorialURL +
-        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_APPLICATION_PACKAGE + "\":\"" + applicationPackage +
-        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_ONE_SIGNAL_APP_ID + "\":\"" + oneSignalAppId +
-        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_MinAPI + "\":\"" + minApi +
-        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_MaxAPI + "\":\"" + maxApi +
+        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_BLOCK_SUBSET + "\":\"" + subsetJSON +
+        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_ACTIONBAR + "\":\"" + actionBar +
+        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_THEME + "\":\"" + theme +
+        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_PRIMARY_COLOR + "\":\"" + primaryColor +
+        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_PRIMARY_COLOR_DARK + "\":\"" + primaryColorDark +
+        "\",\"" + SettingsConstants.YOUNG_ANDROID_SETTINGS_ACCENT_COLOR + "\":\"" + accentColor +
         "\"}}";
   }
 
@@ -174,8 +195,8 @@ public final class YoungAndroidProjectService extends CommonProjectService {
    */
   public static String getProjectPropertiesFileContents(String projectName, String qualifiedName,
     String icon, String vcode, String vname, String useslocation, String aname,
-    String sizing, String showListsAsJson, String tutorialURL, String applicationPackage, String oneSignalAppId
-          , String minApi, String maxApi) {
+    String sizing, String showListsAsJson, String tutorialURL, String subsetJSON, String actionBar, String theme,
+    String primaryColor, String primaryColorDark, String accentColor) {
     String contents = "main=" + qualifiedName + "\n" +
         "name=" + projectName + '\n' +
         "assets=../" + ASSETS_FOLDER + "\n" +
@@ -205,22 +226,24 @@ public final class YoungAndroidProjectService extends CommonProjectService {
     if (tutorialURL != null && !tutorialURL.isEmpty()) {
       contents += "tutorialurl=" + tutorialURL + "\n";
     }
-    if (applicationPackage != null && !applicationPackage.isEmpty()) {
-      contents += "ApplicationPackage=" + applicationPackage + "\n";
+    if (subsetJSON != null && !subsetJSON.isEmpty()) {
+      contents += "subsetjson=" + subsetJSON + "\n";
     }
-
-    if (oneSignalAppId != null && !oneSignalAppId.isEmpty()) {
-      contents += "AppId=" + oneSignalAppId + "\n";
+    if (actionBar != null && !actionBar.isEmpty()) {
+      contents += "actionbar=" + actionBar + "\n";
     }
-
-    if (minApi != null && !minApi.isEmpty()) {
-      contents += "MinAPI=" + minApi + "\n";
+    if (theme != null && !theme.isEmpty()) {
+      contents += "theme=" + theme + "\n";
     }
-
-    if (maxApi != null && !maxApi.isEmpty()) {
-      contents += "MaxAPI=" + maxApi + "\n";
+    if (primaryColor != null && !primaryColor.isEmpty()) {
+      contents += "color.primary=" + primaryColor + "\n";
     }
-
+    if (primaryColorDark != null && !primaryColorDark.isEmpty()) {
+      contents += "color.primary.dark=" + primaryColorDark + "\n";
+    }
+    if (accentColor != null && !accentColor.isEmpty()) {
+      contents += "color.accent=" + accentColor + "\n";
+    }
     return contents;
   }
 
@@ -231,17 +254,9 @@ public final class YoungAndroidProjectService extends CommonProjectService {
    */
   @VisibleForTesting
   public static String getInitialFormPropertiesFileContents(String qualifiedName) {
-    // read in reverse
-    String[] tokens = qualifiedName.split("\\.");
-    String formName = tokens[tokens.length - 1];
-    String appName = tokens[tokens.length - 2];
     final int lastDotPos = qualifiedName.lastIndexOf('.');
-
-    //hossein: packageName. for appinventor.ai_kkashi01.AppName.FormName, get the 2rd element
-    //hossein: packageName. for com.appybuilder.kkashi01.AppName.FormName, get the 3th element
-//    String appName = qualifiedName.split("\\.")[2];     // for appinventor.ai_kkashi01.SomeAppName
-//    String appName = qualifiedName.split("\\.")[3];     // for com.appybuilder.kkashi01.SomeAppName
-//      String formName = qualifiedName.substring(lastDotPos + 1);
+    String packageName = qualifiedName.split("\\.")[2];
+    String formName = qualifiedName.substring(lastDotPos + 1);
     // The initial Uuid is set to zero here since (as far as we know) we can't get random numbers
     // in ode.shared.  This shouldn't actually matter since all Uuid's are random int's anyway (and
     // 0 was randomly chosen, I promise).  The TODO(user) in MockComponent.java indicates that
@@ -253,7 +268,7 @@ public final class YoungAndroidProjectService extends CommonProjectService {
         "\"YaVersion\":\"" + YaVersion.YOUNG_ANDROID_VERSION + "\",\"Source\":\"Form\"," +
         "\"Properties\":{\"$Name\":\"" + formName + "\",\"$Type\":\"Form\"," +
         "\"$Version\":\"" + YaVersion.FORM_COMPONENT_VERSION + "\",\"Uuid\":\"" + 0 + "\"," +
-        "\"Title\":\"" + formName + "\",\"AppName\":\"" + appName +"\"}}\n|#";
+        "\"Title\":\"" + formName + "\",\"AppName\":\"" + packageName +"\"}}\n|#";
   }
 
   /**
@@ -299,25 +314,29 @@ public final class YoungAndroidProjectService extends CommonProjectService {
         SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
         SettingsConstants.YOUNG_ANDROID_SETTINGS_SHOW_LISTS_AS_JSON));
     String newTutorialURL = Strings.nullToEmpty(settings.getSetting(
-          SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
         SettingsConstants.YOUNG_ANDROID_SETTINGS_TUTORIAL_URL));
-    String newApplicationPackage = Strings.nullToEmpty(settings.getSetting(
-            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-            SettingsConstants.YOUNG_ANDROID_SETTINGS_APPLICATION_PACKAGE));
-    String newOneSignalAppId = Strings.nullToEmpty(settings.getSetting(
-            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-            SettingsConstants.YOUNG_ANDROID_SETTINGS_ONE_SIGNAL_APP_ID));
+    String newSubsetJSON = Strings.nullToEmpty(settings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_BLOCK_SUBSET));
     String newAName = Strings.nullToEmpty(settings.getSetting(
           SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
           SettingsConstants.YOUNG_ANDROID_SETTINGS_APP_NAME));
-
-   String newMinApi = Strings.nullToEmpty(settings.getSetting(
-          SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-          SettingsConstants.YOUNG_ANDROID_SETTINGS_MinAPI));
-
-   String newMaxApi = Strings.nullToEmpty(settings.getSetting(
-          SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-          SettingsConstants.YOUNG_ANDROID_SETTINGS_MaxAPI));
+    String newActionBar = Strings.nullToEmpty(settings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_ACTIONBAR));
+    String newTheme = Strings.nullToEmpty(settings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_THEME));
+    String newPrimaryColor = Strings.nullToEmpty(settings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_PRIMARY_COLOR));
+    String newPrimaryColorDark = Strings.nullToEmpty(settings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_PRIMARY_COLOR_DARK));
+    String newAccentColor = Strings.nullToEmpty(settings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_ACCENT_COLOR));
 
     // Extract the old icon from the project.properties file from storageIo.
     String projectProperties = storageIo.downloadFile(userId, projectId,
@@ -338,26 +357,26 @@ public final class YoungAndroidProjectService extends CommonProjectService {
     String oldAName = Strings.nullToEmpty(properties.getProperty("aname"));
     String oldShowListsAsJson = Strings.nullToEmpty(properties.getProperty("showlistsasjson"));
     String oldTutorialURL = Strings.nullToEmpty(properties.getProperty("tutorialurl"));
-    String oldApplicationPackage = Strings.nullToEmpty(properties.getProperty("ApplicationPackage"));
-    String oldOneSignalAppId = Strings.nullToEmpty(properties.getProperty("AppId"));
-    String oldMinApi = Strings.nullToEmpty(properties.getProperty("MinAPI"));
-    String oldMaxApi = Strings.nullToEmpty(properties.getProperty("MaxAPI"));
+    String oldSubsetJSON = Strings.nullToEmpty(properties.getProperty("subsetjson"));
+    String oldActionBar = Strings.nullToEmpty(properties.getProperty("actionbar"));
+    String oldTheme = Strings.nullToEmpty(properties.getProperty("theme"));
+    String oldPrimaryColor = Strings.nullToEmpty(properties.getProperty("color.primary"));
+    String oldPrimaryColorDark = Strings.nullToEmpty(properties.getProperty("color.primary.dark"));
+    String oldAccentColor = Strings.nullToEmpty(properties.getProperty("color.accent"));
 
     if (!newIcon.equals(oldIcon) || !newVCode.equals(oldVCode) || !newVName.equals(oldVName)
       || !newUsesLocation.equals(oldUsesLocation) ||
-            !newAName.equals(oldAName) || !newSizing.equals(oldSizing) ||
+         !newAName.equals(oldAName) || !newSizing.equals(oldSizing) ||
       !newShowListsAsJson.equals(oldShowListsAsJson) ||
-      !newTutorialURL.equals(oldTutorialURL)
-            || !newApplicationPackage.equals(oldApplicationPackage)
-            || !newOneSignalAppId.equals(oldOneSignalAppId)
-            || !newMinApi.equals(oldMinApi)
-            || !newMaxApi.equals(oldMaxApi)
-            ) {
+        !newTutorialURL.equals(oldTutorialURL) || !newSubsetJSON.equals(oldSubsetJSON) || !newActionBar.equals(oldActionBar) ||
+        !newTheme.equals(oldTheme) || !newPrimaryColor.equals(oldPrimaryColor) ||
+        !newPrimaryColorDark.equals(oldPrimaryColorDark) || !newAccentColor.equals(oldAccentColor)) {
       // Recreate the project.properties and upload it to storageIo.
       String projectName = properties.getProperty("name");
       String qualifiedName = properties.getProperty("main");
       String newContent = getProjectPropertiesFileContents(projectName, qualifiedName, newIcon,
-        newVCode, newVName, newUsesLocation, newAName, newSizing, newShowListsAsJson, newTutorialURL, newApplicationPackage, newOneSignalAppId, newMinApi, newMaxApi);
+        newVCode, newVName, newUsesLocation, newAName, newSizing, newShowListsAsJson, newTutorialURL, newSubsetJSON,
+        newActionBar, newTheme, newPrimaryColor, newPrimaryColorDark, newAccentColor);
       storageIo.uploadFileForce(projectId, PROJECT_PROPERTIES_FILE_NAME, userId,
           newContent, StorageUtil.DEFAULT_CHARSET);
     }
@@ -376,7 +395,8 @@ public final class YoungAndroidProjectService extends CommonProjectService {
 
     String propertiesFileName = PROJECT_PROPERTIES_FILE_NAME;
     String propertiesFileContents = getProjectPropertiesFileContents(projectName,
-      qualifiedFormName, null, null, null, null, null, null, null, null, null, null, null, null);
+      qualifiedFormName, null, null, null, null, null, null, null, null, null, null, null, null,
+        null, null);
 
     String formFileName = YoungAndroidFormNode.getFormFileId(qualifiedFormName);
     String formFileContents = getInitialFormPropertiesFileContents(qualifiedFormName);
@@ -396,7 +416,8 @@ public final class YoungAndroidProjectService extends CommonProjectService {
     project.addTextFile(new TextFile(yailFileName, yailFileContents));
 
     // Create new project
-    return storageIo.createProject(userId, project, getProjectSettings("", "1", "1.0", "false", projectName, "Fixed", "false", "", "", "", "14", "26"));
+    return storageIo.createProject(userId, project, getProjectSettings("", "1", "1.0", "false",
+        projectName, "Fixed", "false", "", "", "false", "AppTheme.Light.DarkActionBar","0", "0", "0"));
   }
 
   @Override
@@ -429,21 +450,24 @@ public final class YoungAndroidProjectService extends CommonProjectService {
     String tutorialURL = oldSettings.getSetting(
         SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
         SettingsConstants.YOUNG_ANDROID_SETTINGS_TUTORIAL_URL);
-    String applicationPackage = oldSettings.getSetting(
-            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-            SettingsConstants.YOUNG_ANDROID_SETTINGS_APPLICATION_PACKAGE);
-    String oneSignalAppId = oldSettings.getSetting(
-            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-            SettingsConstants.YOUNG_ANDROID_SETTINGS_ONE_SIGNAL_APP_ID);
-
-    String minApi = oldSettings.getSetting(
-            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-            SettingsConstants.YOUNG_ANDROID_SETTINGS_MinAPI);
-
-    String maxApi = oldSettings.getSetting(
-            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-            SettingsConstants.YOUNG_ANDROID_SETTINGS_MaxAPI);
-
+    String subsetJSON = oldSettings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_BLOCK_SUBSET);
+    String actionBar = oldSettings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_ACTIONBAR);
+    String theme = oldSettings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_THEME);
+    String primaryColor = oldSettings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_PRIMARY_COLOR);
+    String primaryColorDark = oldSettings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_PRIMARY_COLOR_DARK);
+    String accentColor = oldSettings.getSetting(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_ACCENT_COLOR);
 
     Project newProject = new Project(newName);
     newProject.setProjectType(YoungAndroidProjectNode.YOUNG_ANDROID_PROJECT_TYPE);
@@ -463,7 +487,8 @@ public final class YoungAndroidProjectService extends CommonProjectService {
         String qualifiedFormName = StringUtils.getQualifiedFormName(
             storageIo.getUser(userId).getUserEmail(), newName);
         newContents = getProjectPropertiesFileContents(newName, qualifiedFormName, icon, vcode,
-          vname, useslocation, aname, sizing, showListsAsJson, tutorialURL, applicationPackage, oneSignalAppId, minApi, maxApi);
+          vname, useslocation, aname, sizing, showListsAsJson, tutorialURL, subsetJSON, actionBar,
+          theme, primaryColor, primaryColorDark, accentColor);
       } else {
         // This is some file other than the project properties file.
         // oldSourceFileName may contain the old project name as a path segment, surrounded by /.
@@ -487,7 +512,8 @@ public final class YoungAndroidProjectService extends CommonProjectService {
 
     // Create the new project and return the new project's id.
     return storageIo.createProject(userId, newProject, getProjectSettings(icon, vcode, vname,
-        useslocation, aname, sizing, showListsAsJson, tutorialURL, applicationPackage, oneSignalAppId, minApi, maxApi));
+        useslocation, aname, sizing, showListsAsJson, tutorialURL, subsetJSON, actionBar, theme, primaryColor,
+        primaryColorDark, accentColor));
   }
 
   @Override
@@ -608,59 +634,6 @@ public final class YoungAndroidProjectService extends CommonProjectService {
   }
 
   @Override
-  public long copyScreen(String userId, long projectId, String targetFileId, String fileId) {
-    if (fileId.endsWith(FORM_PROPERTIES_EXTENSION) ||
-            fileId.endsWith(BLOCKLY_SOURCE_EXTENSION)) {
-      // If the file to be added is a form file or a blocks file, add a new form file, a new
-      // blocks file, and a new yail file (as a placeholder for later code generation)
-      String qualifiedFormName = YoungAndroidSourceNode.getQualifiedName(fileId);
-      String formFileName = YoungAndroidFormNode.getFormFileId(qualifiedFormName);
-      String blocklyFileName = YoungAndroidBlocksNode.getBlocklyFileId(qualifiedFormName);
-      String yailFileName = YoungAndroidYailNode.getYailFileId(qualifiedFormName);
-      String targetQualifiedFormName = YoungAndroidSourceNode.getQualifiedName(targetFileId);
-      String targetFormFileName = YoungAndroidFormNode.getFormFileId(targetQualifiedFormName);
-      String targetBlocklyFileName = YoungAndroidBlocksNode.getBlocklyFileId(targetQualifiedFormName);
-      String targetYailFileName = YoungAndroidYailNode.getYailFileId(targetQualifiedFormName);
-      List<String> sourceFiles = storageIo.getProjectSourceFiles(userId, projectId);
-      //LOG.info("source files are:" +sourceFiles);
-
-      boolean hasYail = true;
-      if (!sourceFiles.contains(formFileName) &&
-              !sourceFiles.contains(blocklyFileName)
-              && !sourceFiles.contains(yailFileName)
-              ) {
-        hasYail = sourceFiles.contains(targetYailFileName);
-        if (sourceFiles.contains(targetFormFileName) &&
-                sourceFiles.contains(targetBlocklyFileName)
-//                &&sourceFiles.contains(targetYailFileName)
-                ) {
-          //Screen1, or Screen2
-          int lastDotPos = qualifiedFormName.lastIndexOf('.');
-          String simpleFormName = qualifiedFormName.substring(lastDotPos + 1);
-          lastDotPos = targetQualifiedFormName.lastIndexOf('.');
-          String simpleTargetFormName = targetQualifiedFormName.substring(lastDotPos + 1);
-          String formFileContents = load(userId, projectId, targetFormFileName).replace(simpleTargetFormName, simpleFormName);
-          storageIo.addSourceFilesToProject(userId, projectId, false, formFileName);
-          storageIo.uploadFileForce(projectId, formFileName, userId, formFileContents, StorageUtil.DEFAULT_CHARSET);
-          if (hasYail) {
-              String yailFileContents = load(userId, projectId, targetYailFileName).replace(simpleTargetFormName, simpleFormName);
-              storageIo.addSourceFilesToProject(userId, projectId, false, yailFileName);
-              storageIo.uploadFileForce(projectId, yailFileName, userId, yailFileContents, StorageUtil.DEFAULT_CHARSET);
-          }
-        String blocklyFileContents = load(userId, projectId, targetBlocklyFileName).replace(simpleTargetFormName, simpleFormName);
-        storageIo.addSourceFilesToProject(userId, projectId, false, blocklyFileName);
-        return storageIo.uploadFileForce(projectId, blocklyFileName, userId, blocklyFileContents, StorageUtil.DEFAULT_CHARSET);
-        } else {
-          throw new IllegalStateException("One or more files to be copied don't exist. Error:" +sourceFiles + ", target:" +  targetYailFileName);
-        }
-      } else {
-        throw new IllegalStateException("One or more files to be added already exists.");
-      }
-    } else {
-      return super.addFile(userId, projectId, fileId);
-    }
-  }
-  @Override
   public long deleteFile(String userId, long projectId, String fileId) {
     if (fileId.endsWith(FORM_PROPERTIES_EXTENSION) ||
         fileId.endsWith(BLOCKLY_SOURCE_EXTENSION)) {
@@ -687,6 +660,17 @@ public final class YoungAndroidProjectService extends CommonProjectService {
   }
 
   /**
+   * Constructs a RpcResult object that indicates that a file was too big to send.
+   *
+   * @param size size of the aia
+   * @return a new RpcResult with information for rendering an error in the client
+   */
+  private RpcResult fileTooBigResult(double size) {
+    return new RpcResult(413, "", String.format(Locale.getDefault(),
+        "{\"maxSize\":%d,\"aiaSize\":%f}", MAX_PROJECT_SIZE.get(), size / MB));
+  }
+
+  /**
    * Make a request to the Build Server to build a project.  The Build Server will asynchronously
    * post the results of the build via the {@link com.google.appinventor.server.ReceiveBuildServlet}
    * A later call will need to be made by the client in order to get those results.
@@ -699,7 +683,8 @@ public final class YoungAndroidProjectService extends CommonProjectService {
    * @return an RpcResult reflecting the call to the Build Server
    */
   @Override
-  public RpcResult build(User user, long projectId, String nonce, String target) {
+  public RpcResult build(User user, long projectId, String nonce, String target,
+      boolean secondBuildserver, boolean isAab) {
     String userId = user.getUserId();
     String projectName = storageIo.getProjectName(userId, projectId);
     String outputFileDir = BUILD_FOLDER + '/' + target;
@@ -716,72 +701,41 @@ public final class YoungAndroidProjectService extends CommonProjectService {
     }
     URL buildServerUrl = null;
     ProjectSourceZip zipFile = null;
-    int responseCode = 0;
-
-    // Keeping max at 20MB, otherwise, we may have to change the appengine size
-    int maxAiaSize = 20;  // in mb
-    String errMsg="";
-
-    int zipFileLength = -1;
     try {
-        buildServerUrl = new URL(getBuildServerUrlStr(
-            user.getUserEmail(),
-            userId,
-            projectId,
-            outputFileDir));
-
-//      try (BufferedInputStream in = new BufferedInputStream(new URL(buildServerUrl).openStream());
-//           FileOutputStream fileOutputStream new FileOutputStream(FILE_NAME)) {
-//        byte dataBuffer[] = new byte[1024];
-//        int bytesRead;
-//        while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
-//          fileOutputStream.write(dataBuffer, 0, bytesRead);
-//        }
-//      } catch (IOException e) {
-//        // handle exception
-//      }
-
+      buildServerUrl = new URL(getBuildServerUrlStr(
+          user.getUserEmail(),
+          userId,
+          projectId,
+          secondBuildserver,
+          outputFileDir,
+          isAab));
       HttpURLConnection connection = (HttpURLConnection) buildServerUrl.openConnection();
-//      connection.setRequestMethod("PUT");
-//      OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
-//      writer.write(URLEncoder.encode(jsonObj.toString(), "UTF-8"));
-//      writer.close();
-
-//      urlConnection.addRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundaryString);
-
-//      connection.setConnectTimeout(2000);
-      connection.setUseCaches(false);
-      connection.setChunkedStreamingMode(1024);
-      connection.setRequestProperty("Connection", "Keep-Alive");
-//      connection.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + BOUNDARY);
-
-        connection.setDoOutput(true);
+      connection.setDoOutput(true);
       connection.setRequestMethod("POST");
 
       BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(connection.getOutputStream());
       FileExporter fileExporter = new FileExporterImpl();
-        zipFile = fileExporter.exportProjectSourceZip(userId, projectId, false,
-            /* includeAndroidKeystore */ true,
-          projectName + ".aia", true, false, true, false);
-      bufferedOutputStream.write(zipFile.getContent());
-        bufferedOutputStream.flush();
-        bufferedOutputStream.close();
-
-
-      zipFileLength = zipFile == null ? -1 : zipFile.getContent().length;
-      String lengthMbs = format((zipFileLength * 1.0)/(1024*1024));
-
-      // Pre-check to see if we pass our max aia size.
-      errMsg = "Sorry, can't package projects larger than " + maxAiaSize + "MB. Yours is " + lengthMbs + "MB. Please consider shrinking assets and/or reducing number of screens";
-      if (zipFileLength >= (maxAiaSize * 1024 * 1024) ) {
-        return new RpcResult(false, "", errMsg);
+      zipFile = fileExporter.exportProjectSourceZip(userId, projectId, false,
+          /* includeAndroidKeystore */ true,
+        projectName + ".aia", true, false, true, false);
+      // The code below tests the size of the compressed project before
+      // we send it off to the buildserver. When using URLFetch we know that
+      // this size is limited to 10MB based on Google's documentation.
+      // It isn't clear if this is also enforced in the Java 8 environment
+      // when not using URLFetch. However we are being conservative for now.
+      // Keep in mind that large projects can lead to large APK files which
+      // may not be loadable into many memory restricted devices, so we
+      // may not want to encourage large projects...
+      if (zipFile.getContent().length > MAX_PROJECT_SIZE.get() * MB) {
+        return fileTooBigResult(zipFile.getContent().length);
       }
+      bufferedOutputStream.write(zipFile.getContent());
+      bufferedOutputStream.flush();
+      bufferedOutputStream.close();
 
-      // our project is below the limit
+      int responseCode = 0;
       responseCode = connection.getResponseCode();
       if (responseCode != HttpURLConnection.HTTP_OK) {
-
-
         // Put the HTTP response code into the RpcResult so the client code in BuildCommand.java
         // can provide an appropriate error message to the user.
         // NOTE(lizlooney) - There is some weird bug/problem with HttpURLConnection. When the
@@ -813,24 +767,30 @@ public final class YoungAndroidProjectService extends CommonProjectService {
         }
 
         return new RpcResult(responseCode, "", StringUtils.escape(error));
+      } else {
+        // We get here if all went well and we sent the job to the
+        // buildserver. Below we read the response, but throw it away.
+        // We don't really care what was said. But we need to empty out
+        // the TCP Stream or App Engine will abort the connection by
+        // sending a RST packet instead of re-using it or closing it
+        // cleanly (by sending a FIN packet). Aborting connections can
+        // have a negative effect on some buildserver infrastructures,
+        // particularly those based on docker swarm (as of 2018).
+        readContent(connection.getInputStream());
       }
-
     } catch (MalformedURLException e) {
       CrashReport.createAndLogError(LOG, null,
-          buildErrorMsg("Response code: " + responseCode +  " MalformedURLException", buildServerUrl, userId, projectId), e);
+          buildErrorMsg("MalformedURLException", buildServerUrl, userId, projectId), e);
       return new RpcResult(false, "", e.getMessage());
     } catch (IOException e) {
       // As of App Engine 1.9.0 we get these when UrlFetch is asked to send too much data
-      Throwable wrappedException = e;
-      // Was this due to reaching max aia size?
-      if (zipFileLength >= (maxAiaSize * 1024 * 1024) ) {
-        wrappedException = new IllegalArgumentException(errMsg, e);
+      int zipFileLength = zipFile == null ? -1 : zipFile.getContent().length;
+      if (zipFileLength >= MAX_PROJECT_SIZE.get() * MB) {
+        return fileTooBigResult(zipFileLength);
+      } else {
+        return new RpcResult(false, "", e.getMessage());
       }
-      CrashReport.createAndLogError(LOG, null,
-          buildErrorMsg("IOException", buildServerUrl, userId, projectId), wrappedException);
-      return new RpcResult(false, "", wrappedException.getMessage());
-    }
-    catch (EncryptionException e) {
+    } catch (EncryptionException e) {
       CrashReport.createAndLogError(LOG, null,
           buildErrorMsg("EncryptionException", buildServerUrl, userId, projectId), e);
       return new RpcResult(false, "", e.getMessage());
@@ -839,160 +799,184 @@ public final class YoungAndroidProjectService extends CommonProjectService {
       // big) and ApiProxyException. There may be others.
       Throwable wrappedException = e;
       if (e instanceof ApiProxy.RequestTooLargeException && zipFile != null) {
-        if (zipFileLength >= (maxAiaSize * 1024 * 1024) ) {
-          wrappedException = new IllegalArgumentException(errMsg, e);
+        int zipFileLength = zipFile.getContent().length;
+        if (zipFileLength >= MAX_PROJECT_SIZE.get() * MB) {
+          return fileTooBigResult(zipFileLength);
         } else {
           wrappedException = new IllegalArgumentException(
               "Sorry, project was too large to package (" + zipFileLength + " bytes)");
         }
+      } else {
+        // Unexpected runtime error
+        CrashReport.createAndLogError(LOG, null,
+            buildErrorMsg("RuntimeException", buildServerUrl, userId, projectId), wrappedException);
       }
-      CrashReport.createAndLogError(LOG, null,
-          buildErrorMsg("RuntimeException", buildServerUrl, userId, projectId), wrappedException);
       return new RpcResult(false, "", wrappedException.getMessage());
     }
-
     return new RpcResult(true, "Building " + projectName, "");
   }
 
-  // This was an attemp to chunk and overcome the 10mb. However, now checking beforehand to ensure that
-  // aia is not over 20mb. Also, we are now using java8 in appengine web and native that allows for building larger files
-  private String sendFileToServer(String filename, String targetUrl) {
-    String response = "error";
-    LOG.info("Image filename" + filename);
-    LOG.info("url:" + targetUrl);
-    HttpURLConnection connection = null;
-    DataOutputStream outputStream = null;
-    // DataInputStream inputStream = null;
-
-    String pathToOurFile = filename;
-    String urlServer = targetUrl;
-    String lineEnd = "\r\n";
-    String twoHyphens = "--";
-    String boundary = "*****";
-    DateFormat df = new SimpleDateFormat("yyyy_MM_dd_HH:mm:ss");
-
-    int bytesRead, bytesAvailable, bufferSize;
-    byte[] buffer;
-    int maxBufferSize = 1 * 1024;
-    try {
-      FileInputStream fileInputStream = new FileInputStream(new File(pathToOurFile));
-
-      URL url = new URL(urlServer);
-      connection = (HttpURLConnection) url.openConnection();
-
-      // Allow Inputs & Outputs
-      connection.setDoInput(true);
-      connection.setDoOutput(true);
-      connection.setUseCaches(false);
-      connection.setChunkedStreamingMode(1024);
-      // Enable POST method
-      connection.setRequestMethod("POST");
-
-      connection.setRequestProperty("Connection", "Keep-Alive");
-      connection.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
-
-      outputStream = new DataOutputStream(connection.getOutputStream());
-      outputStream.writeBytes(twoHyphens + boundary + lineEnd);
-
-      String connstr = null;
-      connstr = "Content-Disposition: form-data; name=\"uploadedfile\";filename=\"" + pathToOurFile + "\"" + lineEnd;
-      LOG.info("Connstr: " +  connstr);
-
-      outputStream.writeBytes(connstr);
-      outputStream.writeBytes(lineEnd);
-
-      bytesAvailable = fileInputStream.available();
-      bufferSize = Math.min(bytesAvailable, maxBufferSize);
-      buffer = new byte[bufferSize];
-
-      // Read file
-      bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-      LOG.info("Image length:" + bytesAvailable + "");
-      try {
-        while (bytesRead > 0) {
-          try {
-            outputStream.write(buffer, 0, bufferSize);
-          } catch (OutOfMemoryError e) {
-            e.printStackTrace();
-            response = "outofmemoryerror";
-            return response;
-          }
-          bytesAvailable = fileInputStream.available();
-          bufferSize = Math.min(bytesAvailable, maxBufferSize);
-          bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-        response = "error";
-        return response;
-      }
-      outputStream.writeBytes(lineEnd);
-      outputStream.writeBytes(twoHyphens + boundary + twoHyphens + lineEnd);
-
-      // Responses from the server (code and message)
-      int serverResponseCode = connection.getResponseCode();
-      String serverResponseMessage = connection.getResponseMessage();
-      LOG.info("Server Response Code " + serverResponseCode);
-      LOG.info("Server Response Message: " + serverResponseMessage);
-
-      if (serverResponseCode == 200) {
-        response = "true";
-      }
-
-      String CDate = null;
-      Date serverTime = new Date(connection.getDate());
-      try {
-        CDate = df.format(serverTime);
-      } catch (Exception e) {
-        e.printStackTrace();
-        LOG.info("Date Exception" +  e.getMessage() + " Parse Exception");
-      }
-      LOG.info("Server Response Time:" + CDate + "");
-
-      filename = CDate + filename.substring(filename.lastIndexOf("."), filename.length());
-      LOG.info("File Name in Server : " +  filename);
-
-      fileInputStream.close();
-      outputStream.flush();
-      outputStream.close();
-      outputStream = null;
-    } catch (Exception ex) {
-      // Exception handling
-      response = "error";
-      LOG.info("Send file Exception: " + ex.getMessage() + "");
-      ex.printStackTrace();
+  public RpcResult loginToGallery(String userId) {
+    String token = GalleryToken.makeToken(userId, 0, "");
+    if (galleryId.isEmpty()) {
+      return new RpcResult(-1, "", "Gallery Not Properly Configured");
+    } else {
+      return new RpcResult(0, galleryLocation + "/loginfromappinventor?token=" + token + "&id=" + galleryId, "");
     }
-    return response;
   }
 
-  private String buildErrorMsg(String exceptionName, URL buildURL, String userId, long projectId) {
-    return "Request to build failed with " + exceptionName + ", user=" + userId
-        + ", project=" + projectId + ", build URL is " + buildURL; // + " [" + buildURL.toString().length() + "]";
+  /*
+   * Send a project to the new Gallery
+   *
+   * @param userId the user id
+   * @param projectId the project ID to send
+   */
+
+  @Override
+  public RpcResult sendToGallery(String userId, long projectId) {
+    if (DEBUG) {
+      LOG.info("sendToGallery userId = " + userId + " projectId = " + projectId);
+    }
+    if (galleryId.isEmpty()) {
+      return new RpcResult(-1, "", "Gallery Not Properly Configured");
+    }
+    String projectName = storageIo.getProjectName(userId, projectId);
+    URL newGalleryUrl = null;
+    ProjectSourceZip zipFile = null;
+    try {
+      FileExporter fileExporter = new FileExporterImpl();
+      zipFile = fileExporter.exportProjectSourceZip(userId, projectId, false,
+        false, projectName + ".aia", false, false, true, true);
+      String token = GalleryToken.makeToken(userId, projectId, projectName);
+      newGalleryUrl = new URL(galleryLocation + "/fromappinventor?token=" +
+        token + "&id=" + galleryId);
+      HttpURLConnection connection = (HttpURLConnection) newGalleryUrl.openConnection();
+      connection.setDoOutput(true);
+      connection.setRequestMethod("POST");
+      BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(connection.getOutputStream());
+      bufferedOutputStream.write(zipFile.getContent());
+      bufferedOutputStream.flush();
+      bufferedOutputStream.close();
+      int responseCode = 0;
+      responseCode = connection.getResponseCode();
+      if (responseCode != HttpURLConnection.HTTP_OK) {
+        String error = "Got response code " + responseCode + ".";
+        try {
+          String content = readContent(connection.getInputStream());
+          if (content != null && !content.isEmpty()) {
+            error += "\n" + content;
+          }
+        } catch (IOException e) {
+          // No content. That's ok.
+        }
+        try {
+          String errorContent = readContent(connection.getErrorStream());
+          if (errorContent != null && !errorContent.isEmpty()) {
+            error += "\n" + errorContent;
+          }
+        } catch (IOException e) {
+          // No error content. That's ok.
+        }
+        LOG.severe("SendToGallery: " + error);
+        return new RpcResult(-1, "", error);
+      } else {
+        String returl = readContent(connection.getInputStream()); // Need to drain any response
+        return new RpcResult(0, returl, "");
+      }
+    } catch (Exception e) {
+      throw CrashReport.createAndLogError(LOG, null, e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Load a project from the new Gallery. This code will reach out and fetch
+   * a project from the Gallery. We then store it with the user's projects and
+   * return a UserProject object back to the user's browser so it can load the
+   * newly stored project into the App Inventor UI.
+   *
+   * JIS: We send a GET request to the gallery which returns a
+   * protocol buffer. This buffer contains the meta data we need for
+   * the project (at this point, just its name). It may contain the
+   * content itself (as a ZIP blob) or it may indicate that the ZIP
+   * blob is at a different URL which we will then fetch (when we
+   * implement it :-) ). This permits us to diversify the storage of
+   * project AIA files. In fact it will let us leave projects from the
+   * older gallery implementation in place in Google Cloud Storage
+   * provided that we make those AIA files publicly readable (which I
+   * believe they are)
+   */
+
+  @Override
+  public UserProject loadFromGallery(String userId, String aGalleryId) throws IOException {
+    if (DEBUG) {
+      LOG.info("Before getURLContents (meta)");
+    }
+    final byte [] responseContent = getURLContents(galleryLocation + "/aia/" + aGalleryId);
+    if (DEBUG) {
+      LOG.info("After getURLContents (meta)");
+    }
+    byte[] aiaContents;
+    if (responseContent == null) {
+      throw new IOException("Cannot contact the Gallery, Try again later");
+    }
+    GalleryProtobuf.content content = GalleryProtobuf.content.parseFrom(responseContent);
+
+    if (content.getCtype() == GalleryProtobuf.content.ContentType.DIRECT) {
+      aiaContents = content.getContent().toByteArray();
+    } else if (content.getCtype() == GalleryProtobuf.content.ContentType.URL) {
+      LOG.info("Before getURLContents (data)");
+      aiaContents = getURLContents(content.getUrlcontent());
+      LOG.info("After getURLContents (data)");
+    } else {
+      throw new IOException("Unknown storage format for project.");
+    }
+    FileImporter fileImporter = new FileImporterImpl();
+    // Generate a unique project name (only if conflict)
+    LOG.info("Before checking project names");
+    String newProjectName = verifyProjectName(userId, content.getProjectname());
+    LOG.info("After checking project names");
+    try {
+      UserProject retval = fileImporter.importProject(userId, newProjectName,
+        new ByteArrayInputStream(aiaContents));
+      LOG.info("After fileImporter");
+      return retval;
+    } catch (FileImporterException e) {
+      throw new IOException("Unable to import project");
+    }
+  }
+
+  String buildErrorMsg(String exceptionName, URL buildURL, String userId, long projectId) {
+    return "Request to build failed with " + exceptionName
+      + ", user=" + userId + ", project=" + projectId
+      + ", build URL is " + (buildURL != null ? buildURL : "null") + " ["
+      + (buildURL != null ? buildURL.toString().length() : "n/a") + "]";
   }
 
   // Note that this is a function rather than just a constant because we assume it will get
   // a little more complicated when we want to get the URL from an App Engine config file or
   // command line argument.
   private String getBuildServerUrlStr(String userName, String userId,
-                                      long projectId, String fileName)
-      throws UnsupportedEncodingException, EncryptionException {
-    return "http://" + buildServerHost.get() + "/buildserver/build-all-from-zip-async"
-           + "?uname=" + URLEncoder.encode(userName, "UTF-8")
-           + (sendGitVersion.get()
-               ? "&gitBuildVersion="
-                 + URLEncoder.encode(GitBuildId.getVersion(), "UTF-8")
-               : "")
-           + "&callback="
-           + URLEncoder.encode("http://" + getCurrentHost() + ServerLayout.ODE_BASEURL_NOAUTH
-                               + ServerLayout.RECEIVE_BUILD_SERVLET + "/"
-                               + Security.encryptUserAndProjectId(userId, projectId)
-                               + "/" + fileName,
-                               "UTF-8");
+    long projectId, boolean secondBuildserver, String fileName, boolean isAab)
+      throws EncryptionException {
+    UriBuilder uriBuilder = new UriBuilder(
+        "http://"
+            + (secondBuildserver ? buildServerHost2.get() : buildServerHost.get())
+            + "/buildserver/build-all-from-zip-async")
+        .add("uname", userName)
+        .add("callback", "http://" + getCurrentHost() + ServerLayout.ODE_BASEURL_NOAUTH +
+            ServerLayout.RECEIVE_BUILD_SERVLET + "/" +
+            Security.encryptUserAndProjectId(userId, projectId) + "/" +
+            fileName)
+        .add("ext", isAab ? "aab" : "apk");
+    if (sendGitVersion.get()) {
+      uriBuilder.add("gitBuildVersion", GitBuildId.getVersion());
+    }
+    return uriBuilder.build();
   }
 
   private String getCurrentHost() {
     if (Server.isProductionServer()) {
-      if (appengineHost.get()=="") {
+      if (StringUtils.isNullOrEmpty(appengineHost.get())) {
         String applicationVersionId = SystemProperty.applicationVersion.get();
         String applicationId = SystemProperty.applicationId.get();
         return applicationVersionId + "." + applicationId + ".appspot.com";
@@ -1038,8 +1022,9 @@ public final class YoungAndroidProjectService extends CommonProjectService {
     String userId = user.getUserId();
     String buildOutputFileName = BUILD_FOLDER + '/' + target + '/' + "build.out";
     List<String> outputFiles = storageIo.getProjectOutputFiles(userId, projectId);
-    updateCurrentProgress(user, projectId, target);
-    RpcResult buildResult = new RpcResult(-1, ""+currentProgress, ""); // Build not finished
+    RpcResult buildResult = new RpcResult(-1,
+        Integer.toString(getCurrentProgress(user, projectId, target)),
+        ""); // Build not finished
     for (String outputFile : outputFiles) {
       if (buildOutputFileName.equals(outputFile)) {
         String outputStr = storageIo.downloadFile(userId, projectId, outputFile, "UTF-8");
@@ -1065,49 +1050,97 @@ public final class YoungAndroidProjectService extends CommonProjectService {
    * @param projectId  project id to be built
    * @param target  build target (optional, implementation dependent)
    */
-  public void updateCurrentProgress(User user, long projectId, String target) {
-    try {
-      String userId = user.getUserId();
-      String projectName = storageIo.getProjectName(userId, projectId);
-      String outputFileDir = BUILD_FOLDER + '/' + target;
-      URL buildServerUrl = null;
-      ProjectSourceZip zipFile = null;
+  public int getCurrentProgress(User user, long projectId, String target) {
+    return storageIo.getBuildStatus(user.getUserId(), projectId);
+  }
 
-      buildServerUrl = new URL(getBuildServerUrlStr(user.getUserEmail(),
-        userId, projectId, outputFileDir));
-      HttpURLConnection connection = (HttpURLConnection) buildServerUrl.openConnection();
-
-      connection.setDoOutput(true);
-      connection.setRequestMethod("POST");
-
-      int responseCode = connection.getResponseCode();
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-          try {
-            String content = readContent(connection.getInputStream());
-            if (content != null && !content.isEmpty()) {
-              if (DEBUG) {
-                LOG.info("The current progress is " + content + "%.");
-              }
-              currentProgress = Integer.parseInt(content);
-            }
-          } catch (IOException e) {
-            // No content. That's ok.
-          }
-         }
-      } catch (MalformedURLException e) {
-        // that's ok, nothing to do
-      } catch (IOException e) {
-        // that's ok, nothing to do
-      } catch (EncryptionException e) {
-        // that's ok, nothing to do
-      } catch (RuntimeException e) {
-        // that's ok, nothing to do
+  /**
+   * This method reads from a stream based on the passed connection. It reads
+   * the content as bytes, so it can deal with binary files
+   *
+   * @param connection the connection to read from
+   * @return the contents of the stream
+   * @throws IOException if it cannot read from the http connection
+   */
+  private static byte[] getResponseBytes(HttpURLConnection connection) throws IOException {
+    // Use the content encoding to convert bytes to characters.
+    InputStream input = connection.getInputStream();
+    int bytesRead = 0;
+    int contentLength = connection.getContentLength();
+    LOG.info("contentLength = " + contentLength);
+    byte buffer[] = new byte[contentLength];
+    while (true) {
+      int i = input.read(buffer, bytesRead, contentLength - bytesRead);
+      if (i < 0) {
+        break;
       }
+      bytesRead += i;
+    }
+    LOG.info("Done, contentLenght = " + contentLength + " bytesRead = " + bytesRead);
+    return buffer;
   }
 
-  // Nicely format floating number using only two decimal places
-  private String format(double input) {
-    DecimalFormat formatter = new DecimalFormat("###.##");
-    return formatter.format(input);
+  /*
+   * Verify that the input projectName is unique among the user's
+   * projects.
+   */
+
+  private String verifyProjectName(String userId, String projectName) {
+    int count = 0;
+    List<Long> projectIds = storageIo.getProjects(userId);
+    List<UserProject> projects = storageIo.getUserProjects(userId, projectIds);
+    TreeSet<String> projectNames = new TreeSet();
+    for (UserProject project : projects) {
+      projectNames.add(project.getProjectName());
+    }
+    String baseProjectName = projectName;
+    while (true) {
+      if (count > 100) {
+        throw CrashReport.createAndLogError(LOG, null, "Count exceeded in verifyProjectName", null);
+      }
+      if (!projectNames.contains(projectName)) {
+        return projectName;
+      }
+      count += 1;
+      projectName = baseProjectName + "_" + count;
+    }
   }
+
+  private static byte [] getURLContents(String url) throws IOException {
+    try {
+      URL Url = new URL(url);
+      HttpURLConnection connection = (HttpURLConnection) Url.openConnection();
+      if (connection != null) {
+        try {
+          connection.setRequestMethod("GET");
+          connection.setFollowRedirects(true);
+          int responseCode = connection.getResponseCode();
+          if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw new IOException("Got bad response code on read: " + responseCode);
+          }
+          return getResponseBytes(connection);
+        } catch (ConnectException e) {
+          throw new IOException("Connection Failure: " + e.getMessage());
+        } catch (FileNotFoundException e) {
+          throw new IOException("No Such Object: " + url);
+        } finally {
+          if (connection != null) {
+            try {
+              LOG.info("Before CLOSE");
+              connection.disconnect();
+              LOG.info("After CLOSE");
+            } catch (Exception e) {
+              // XXX
+            }
+          }
+        }
+      } else {
+        return null;
+      }
+    } catch (Exception e) {
+      throw new IOException("Unable to read content: " + e.getMessage());
+    }
+
+  }
+
 }

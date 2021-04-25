@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2015 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -11,13 +8,10 @@ package com.google.appinventor.client.wizards;
 
 import static com.google.appinventor.client.Ode.MESSAGES;
 
-import com.allen_sauer.gwt.dnd.client.util.StringUtil;
 import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
-import com.google.appinventor.client.editor.simple.SimpleComponentDatabase;
 import com.google.appinventor.client.editor.youngandroid.YaProjectEditor;
 import com.google.appinventor.client.explorer.project.Project;
-import com.google.appinventor.client.output.OdeLog;
 import com.google.appinventor.common.utils.StringUtils;
 import com.google.appinventor.client.utils.Uploader;
 import com.google.appinventor.shared.rpc.ServerLayout;
@@ -52,11 +46,11 @@ public class ComponentImportWizard extends Wizard {
 
   final static String external_components = "assets/external_comps/";
 
-  private static class ImportComponentCallback extends OdeAsyncCallback<ComponentImportResponse> {
+  public static class ImportComponentCallback extends OdeAsyncCallback<ComponentImportResponse> {
     @Override
     public void onSuccess(ComponentImportResponse response) {
       if (response.getStatus() == ComponentImportResponse.Status.FAILED){
-        Window.alert(MESSAGES.componentImportError());
+        Window.alert(MESSAGES.componentImportError() + "\n" + response.getMessage());
         return;
       }
       else if (response.getStatus() != ComponentImportResponse.Status.IMPORTED &&
@@ -68,8 +62,12 @@ public class ComponentImportWizard extends Wizard {
         Window.alert(MESSAGES.componentImportUnknownURLError());
       }
       else if (response.getStatus() == ComponentImportResponse.Status.UPGRADED) {
-        String componentName = SimpleComponentDatabase.getInstance().getComponentName(response.getComponentType());
-        Window.alert(MESSAGES.componentUpgradedAlert() + componentName + " !");
+        StringBuilder sb = new StringBuilder(MESSAGES.componentUpgradedAlert());
+        for (String name : response.getComponentTypes().values()) {
+          sb.append("\n");
+          sb.append(name);
+        }
+        Window.alert(sb.toString());
       }
 
       List<ProjectNode> compNodes = response.getNodes();
@@ -114,8 +112,8 @@ public class ComponentImportWizard extends Wizard {
     final FileUpload fileUpload = createFileUpload();
     final Grid urlGrid = createUrlGrid();
     final TabPanel tabPanel = new TabPanel();
-    tabPanel.add(fileUpload, "From my computer");
-    tabPanel.add(urlGrid, "URL");
+    tabPanel.add(fileUpload, MESSAGES.componentImportFromComputer());
+    tabPanel.add(urlGrid, MESSAGES.componentImportFromURL());
     tabPanel.selectTab(FROM_MY_COMPUTER_TAB);
     tabPanel.addStyleName("ode-Tabpanel");
 
@@ -229,6 +227,7 @@ public class ComponentImportWizard extends Wizard {
   private FileUpload createFileUpload() {
     FileUpload upload = new FileUpload();
     upload.setName(ServerLayout.UPLOAD_COMPONENT_ARCHIVE_FORM_ELEMENT);
+    upload.getElement().setAttribute("accept", COMPONENT_ARCHIVE_EXTENSION);
     return upload;
   }
 

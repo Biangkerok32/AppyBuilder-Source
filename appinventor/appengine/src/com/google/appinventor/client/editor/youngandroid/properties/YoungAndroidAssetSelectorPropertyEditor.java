@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -9,8 +6,9 @@
 
 package com.google.appinventor.client.editor.youngandroid.properties;
 
-import com.google.appinventor.client.Ode;
 import static com.google.appinventor.client.Ode.MESSAGES;
+
+import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.editor.youngandroid.YaFormEditor;
 import com.google.appinventor.client.explorer.project.Project;
 import com.google.appinventor.client.explorer.project.ProjectChangeListener;
@@ -23,6 +21,8 @@ import com.google.appinventor.shared.rpc.project.ProjectNode;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidAssetNode;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidAssetsFolder;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjectNode;
+import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.Command;
@@ -59,6 +59,12 @@ public final class YoungAndroidAssetSelectorPropertyEditor extends AdditionalCho
     assetsList = new ListBox();
     assetsList.setVisibleItemCount(10);
     assetsList.setWidth("100%");
+    assetsList.addChangeHandler(new ChangeHandler() {
+      @Override
+      public void onChange(ChangeEvent event) {
+        setOkButtonEnabled(true);
+      }
+    });
     selectorPanel.add(assetsList);
 
     choices = new ListWithNone(MESSAGES.noneCaption(), new ListWithNone.ListBoxWrapper() {
@@ -147,13 +153,20 @@ public final class YoungAndroidAssetSelectorPropertyEditor extends AdditionalCho
 
   @Override
   protected void openAdditionalChoiceDialog() {
-    choices.selectValue(property.getValue());
+    if (!isMultipleValues()) {
+      choices.selectValue(property.getValue());
+    } else {
+      setOkButtonEnabled(false);
+    }
     super.openAdditionalChoiceDialog();
     assetsList.setFocus(true);
   }
 
   @Override
   protected String getPropertyValueSummary() {
+    if (isMultipleValues()) {
+      return MESSAGES.multipleValues();
+    }
     String value = property.getValue();
     if (choices.containsValue(value)) {
       return choices.getDisplayItemForValue(value);
@@ -168,7 +181,9 @@ public final class YoungAndroidAssetSelectorPropertyEditor extends AdditionalCho
       Window.alert(MESSAGES.noAssetSelected());
       return false;
     }
-    property.setValue(choices.getValueAtIndex(selected));
+    boolean multiple = isMultipleValues();
+    setMultipleValues(false);
+    property.setValue(choices.getValueAtIndex(selected), multiple);
     return true;
   }
 

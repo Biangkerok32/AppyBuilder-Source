@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -33,7 +30,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Component enabling a user to select a contact's phone number.
+ * A button that, when clicked on, displays a list of the contacts' phone numbers to choose among.
+ * After the user has made a selection, the following properties will be set to information about
+ * the chosen contact:
+ *
+ *  - {@link #ContactName()}: the contact's name
+ *  - {@link #PhoneNumber()}: the contact's phone number
+ *  - {@link #EmailAddress()}: the contact's email address
+ *  - {@link #Picture()}: the name of the file containing the contact's image, which can be used as a Picture property value for the Image or ImageSprite component.
+ *
+ * Other properties affect the appearance of the button ({@link #TextAlignment()},
+ * {@link #BackgroundColor()}, etc.) and whether it can be clicked on ({@link #Enabled()}).
+ *
+ * The `PhoneNumberPicker` component may not work on all Android devices. For example, on Android
+ * systems before system 3.0, the returned lists of phone numbers and email addresses will be empty.
  *
  * @author sharon@google.com (Sharon Perl)
  * @author markf@google.com (Mark Friedman)
@@ -84,7 +94,8 @@ public class PhoneNumberPicker extends ContactPicker {
   }
 
   /**
-   * PhoneNumber property getter method.
+   * Returns the primary phone number associated with the selected contact, or the empty string if
+   * no phone number is associated with the contact.
    */
   @SimpleProperty(
       category = PropertyCategory.BEHAVIOR)

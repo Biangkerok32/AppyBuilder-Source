@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 package com.google.appinventor.components.runtime;
@@ -91,6 +88,8 @@ import java.util.ArrayList;
     description = "<p>A non-visible component that communicates with Google Fusion Tables. " +
     "Fusion Tables let you store, share, query and visualize data tables; " +
     "this component lets you query, create, and modify these tables.</p> "  +
+    "<p><font color=red><b>NOTE:</b>&nbsp;Google shutdown the Fusion Tables service on December 3, 2019. This " +
+    "component no longer functions.</font></p> " +
     "<p>This component uses the " +
     "<a href=\"https://developers.google.com/fusiontables/docs/v2/getting_started\" target=\"_blank\">Fusion Tables API V2.0</a>. " +
     "<p>Applications using Fusion Tables must authentication to Google's servers. There " +
@@ -114,7 +113,7 @@ import java.util.ArrayList;
     "<p>Your API Key will be near the bottom of that pane in the section called \"Simple API Access\"." +
     "You will have to provide that key as the value for the <i>ApiKey</i> property in your Fusiontables app.</p>" +
     "<p>Once you have an API key, set the value of the <i>Query</i> property to a valid Fusiontables SQL query " +
-    "and call <i>SendQuery</i> to execute the query.  AppyBuilder will send the query to the Fusion Tables " +
+    "and call <i>SendQuery</i> to execute the query.  App Inventor will send the query to the Fusion Tables " +
     "server and the <i>GotResult</i> block will fire when a result is returned from the server." +
     "Query results will be returned in CSV format, and " +
     "can be converted to list format using the \"list from csv table\" or " +
@@ -124,7 +123,7 @@ import java.util.ArrayList;
     "<a href=\"https://developers.google.com/fusiontables/docs/v2/getting_started\" target=\"_blank\">the reference manual</a>, " +
     "which means that things like capitalization for names of columns matters, and " +
     "that single quotes must be used around column names if there are spaces in them.</p>",
-    category = ComponentCategory.STORAGE,
+    category = ComponentCategory.INTERNAL,
     nonVisible = true,
     iconName = "images/fusiontables.png")
 @SimpleObject
@@ -162,7 +161,7 @@ public class FusiontablesControl extends AndroidNonvisibleComponent implements C
   public static final String AUTHORIZATION_HEADER_PREFIX = "Bearer ";
 
   public static final String AUTH_TOKEN_TYPE_FUSIONTABLES = "oauth2:https://www.googleapis.com/auth/fusiontables";
-  public static final String APP_NAME = "AppyBuilder";
+  public static final String APP_NAME = "App Inventor";
   private File cachedServiceCredentials = null; // if using service accounts, temp location of credentials.
 
   private String authTokenType = AUTH_TOKEN_TYPE_FUSIONTABLES;
@@ -223,9 +222,10 @@ public class FusiontablesControl extends AndroidNonvisibleComponent implements C
   private String serviceAccountEmail = "";
 
   private String scope = "https://www.googleapis.com/auth/fusiontables";
-    private boolean showLoadingDialog = true;
 
-    private String loadingDialogMessage = "Please wait loading...";
+  private String loadingDialogMessage = "Please wait loading...";
+
+  private boolean showLoadingDialog = true;
 
   public FusiontablesControl(ComponentContainer componentContainer) {
     super(componentContainer.$form());
@@ -480,6 +480,7 @@ public class FusiontablesControl extends AndroidNonvisibleComponent implements C
     return showLoadingDialog;
   }
 
+
   // To be Deprecated, based on the old API
   private IClientLoginHelper createClientLoginHelper(String accountPrompt, String service) {
     if (SdkLevel.getLevel() >= SdkLevel.LEVEL_ECLAIR) {
@@ -578,7 +579,7 @@ public class FusiontablesControl extends AndroidNonvisibleComponent implements C
           AndroidHttp.newCompatibleTransport(),
           new GsonFactory(),
           new GoogleCredential())
-    .setApplicationName("AppyBuilder Fusiontables/v2.0")
+    .setApplicationName("App Inventor Fusiontables/v2.0")
     .setJsonHttpRequestInitializer(new GoogleKeyInitializer(ApiKey()))
     .build();
 
@@ -831,7 +832,7 @@ public class FusiontablesControl extends AndroidNonvisibleComponent implements C
 
     @Override
     protected void onPreExecute() {
-    if (ShowLoadingDialog()) {
+      if (ShowLoadingDialog()) {
         dialog.setMessage(LoadingDialogMessage());
         dialog.show();
       }

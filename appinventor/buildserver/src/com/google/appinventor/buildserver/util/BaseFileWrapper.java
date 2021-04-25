@@ -5,12 +5,12 @@
 
 package com.google.appinventor.buildserver.util;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import com.android.io.IAbstractFile;
 import com.android.io.IAbstractFolder;
 import com.android.io.StreamException;
-
-import java.io.InputStream;
-import java.io.OutputStream;
 
 /**
  * BaseFileWrapper provides a stub implementation of Android's IAbstractFile interface.

@@ -1,10 +1,14 @@
 package com.google.appinventor.components.runtime;
 
 import android.R;
+import android.content.res.ColorStateList;
 import android.graphics.PorterDuff;
-import android.graphics.drawable.ClipDrawable;
+import android.graphics.PorterDuff.Mode;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
-import android.graphics.drawable.ScaleDrawable;
+import android.graphics.drawable.StateListDrawable;
+import android.os.Build.VERSION;
+import android.os.Build.VERSION_CODES;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -12,6 +16,7 @@ import android.widget.SeekBar;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.IsColor;
 import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.annotations.SimpleObject;
@@ -22,17 +27,25 @@ import com.google.appinventor.components.common.YaVersion;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 
 /**
- * This class is used to display a Slider.
- * <p>The Slider is a progress bar that adds a draggable thumb. You can touch the thumb and drag
- * left or right to set the slider thumb position. As Slider thumb is dragged, it will trigger
- * PositionChanged event, reporting the position of the Slider thumb. The Slider uses the following
- * default values. However these values can be changed through designer or block editor
- * <ul>
- * <li>MinValue</li>
- * <li>MaxValue</li>
- * <li>ThumbPosition</li>
- * </ul></p>
+ * This class is used to display a `Slider`.
  *
+ * ![Example Slider icon](images/slider.png)
+ *
+ * A `Slider` is a progress bar that adds a draggable thumb. You can touch the thumb and drag left
+ * or right to set the slider thumb position. As the Slider thumb is dragged, it will trigger the
+ * {@link #PositionChanged(float)} event, reporting the position of the `Slider` thumb. The
+ * reported position of the thumb can be used to dynamically update another component attribute,
+ * such as the {@link TextBox#FontSize(float)} of a `TextBox` or the
+ * [Radius](animation.html#Ball.Radius) of a `Ball`.
+ *
+ * The `Slider` uses the following default values. However these values can be changed through the
+ * Designer or Blocks editor:
+ *
+ *  * {@link #MinValue(float)} = 10
+ *  * {@link #MaxValue(float)} = 50
+ *  * {@link #ThumbPosition(float)} = 30
+ *
+ * @author kashi01@gmail.com (M. Hossein Amerkashi)
  * @author hal@mit.edu (Hal Abelson)
  */
 @DesignerComponent(version = YaVersion.SLIDER_COMPONENT_VERSION,
@@ -48,8 +61,7 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   private final static String LOG_TAG = "Slider";
   private static final boolean DEBUG = false;
 
-//  private final MySeekbar seekbar;
-    private final SeekBar seekbar;
+  private final SeekBar seekbar;
 
   // slider mix, max, and thumb positions
   private float minValue;
@@ -57,11 +69,6 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   // thumbPosition is a number between minValue and maxValue
   private float thumbPosition;
   private boolean thumbEnabled;
-
-  // the total slider width
-  private LayerDrawable fullBar;
-  // the part of the slider to the left of the thumb
-  private ClipDrawable beforeThumb;
 
   // colors of the bar after and before the thumb position
   private int rightColor;
@@ -96,17 +103,15 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
    */
   public Slider(ComponentContainer container) {
     super(container);
-//    seekbar = new MySeekbar(container.$context());
-      seekbar = new SeekBar(container.$context());
+    seekbar = new SeekBar(container.$context());
 
-    fullBar = (LayerDrawable) seekbar.getProgressDrawable().getCurrent();
-//    beforeThumb = (ClipDrawable) fullBar.findDrawableByLayerId(R.id.progress);
-      beforeThumb = new ClipDrawable(((ScaleDrawable) fullBar.findDrawableByLayerId(R.id.progress)).getDrawable(), 3, 1);
-//      beforeThumb = ((ClipDrawable) fullBar.findDrawableByLayerId(R.id.progress)
+    if (SdkLevel.getLevel() >= SdkLevel.LEVEL_LOLLIPOP) {
+      seekbar.setSplitTrack(false);
+    }
 
-      leftColor = initialLeftColor;
-      rightColor = initialRightColor;
-      setSliderColors();
+    leftColor = initialLeftColor;
+    rightColor = initialRightColor;
+    setSliderColors();
 
     // Adds the component to its designated container
     container.$add(this);
@@ -132,7 +137,10 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
     if (DEBUG) {
       Log.d(LOG_TAG, "Slider initial min, max, thumb values are: " +
           MinValue() + "/" + MaxValue() + "/" + ThumbPosition());
-        Log.d(LOG_TAG, "API level is " + SdkLevel.getLevel());
+    }
+
+    if (DEBUG) {
+      Log.d(LOG_TAG, "API level is " + SdkLevel.getLevel());
     }
 
   }
@@ -140,15 +148,32 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   // NOTE(hal): On old phones, up through 2.2.2 and maybe higher, the color of the bar doesn't
   // change until the thumb is moved.  I'm ignoring that problem.
   private void setSliderColors() {
-   fullBar.setColorFilter(rightColor,PorterDuff.Mode.SRC);
-   beforeThumb.setColorFilter(leftColor, PorterDuff.Mode.SRC);
- }
-
-  /**
-   * Given min, max, thumb position, this method determines where the thumb position would be
-   * within normal SeekBar 0-100 range
-   *
-   */
+    if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP) {
+      seekbar.setProgressTintList(ColorStateList.valueOf(leftColor));
+      if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP_MR1 ||
+          !(seekbar.getProgressDrawable() instanceof StateListDrawable)) {
+        seekbar.setProgressBackgroundTintList(ColorStateList.valueOf(rightColor));
+        seekbar.setProgressBackgroundTintMode(Mode.MULTIPLY);
+      } else {
+        // Looking at the AOSP code, the previous calls should effectively accomplish what the
+        // following code does... except it doesn't on Android 5.0. Instead, the result is that the
+        // right side color is 50% opacity of leftColor. The following code works on Android 5.0,
+        // but assumes a Drawable hierarchy that may not be true if the device manufacturer deviates
+        // from the AOSP design. If that is the case, then the right hand side will not change.
+        StateListDrawable drawable = (StateListDrawable) seekbar.getProgressDrawable();
+        if (drawable.getCurrent() instanceof LayerDrawable) {
+          LayerDrawable layerDrawable = (LayerDrawable) drawable.getCurrent();
+          Drawable background = layerDrawable.findDrawableByLayerId(R.id.background);
+          background.setTintList(ColorStateList.valueOf(rightColor));
+          background.setTintMode(Mode.MULTIPLY);
+        }
+      }
+    } else {
+      LayerDrawable fullBar = (LayerDrawable) seekbar.getProgressDrawable();
+      fullBar.setColorFilter(rightColor,PorterDuff.Mode.SRC);
+      fullBar.findDrawableByLayerId(R.id.progress).setColorFilter(leftColor, PorterDuff.Mode.SRC);
+    }
+  }
 
  // Set the seekbar position based on minValue, maxValue, and thumbPosition
  // seekbar position is an integer in the range [0,100] and is determined by MinValue,
@@ -165,7 +190,6 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
     seekbar.setProgress((int) seekbarPosition);
   }
 
-  // Chech here. Good options: https://www.androidtutorialpoint.com/basics/android-seekbar-tutorial/
   /**
    * Sets whether or not the slider thumb should be shown
    *
@@ -173,30 +197,26 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
     defaultValue = "True")
-  @SimpleProperty(description = "Sets whether or not to display the slider thumb.", userVisible = true)
+  @SimpleProperty(description = "Sets whether or not to display the slider thumb.",
+     userVisible = true)
   public void ThumbEnabled(boolean enabled) {
-      thumbEnabled = enabled;
-      seekbar.setOnTouchListener(new View.OnTouchListener() {
-          @Override
-          public boolean onTouch(View view, MotionEvent motionEvent) {
-              return !thumbEnabled;
-          }
-      });
+    thumbEnabled = enabled;
+    int alpha = thumbEnabled ? 255 : 0;
+    if (referenceGetThumb) {
+      new SeekBarHelper().getThumb(alpha);
+    }
+
+    // The Seekbar will respond to touch without the thumb. Consume the event with thumb disabled.
+    seekbar.setOnTouchListener(new View.OnTouchListener() {
+      @Override
+      public boolean onTouch(View view, MotionEvent motionEvent) {
+        return !thumbEnabled;
+      }
+    });
   }
 
-//  public void ThumbEnabled(boolean enabled) {
-//    thumbEnabled = enabled;
-//    int alpha = thumbEnabled ? 255 : 0;
-//    if (referenceGetThumb) {
-//      new SeekBarHelper().getThumb(alpha);
-//    }
-//    seekbar.setEnabled(thumbEnabled);
-//
-//  }
-
-
   /**
-   * Whether or not the slider thumb is being be shown
+   * Whether or not the slider thumb is being be shown.
    *
    * @return Whether or not the slider thumb is being be shown
    */
@@ -208,7 +228,9 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   }
 
   /**
-   * Sets the slider thumb position.
+   * Sets the position of the slider thumb. If this value is greater than {@link #MaxValue()},
+   * then it will be set to same value as {@link #MaxValue()}. If this value is less than
+   * {@link #MinValue()}, then it will be set to same value as {@link #MinValue()}.
    *
    * @param position the position of the slider thumb. This value should be between
    *                 sliderMinValue and sliderMaxValue. If this value is not within the min and
@@ -232,6 +254,7 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   /**
    * Returns the position of slider thumb
    *
+   * @suppressdoc
    * @return the slider thumb position
    */
   @SimpleProperty(category = PropertyCategory.APPEARANCE,
@@ -241,6 +264,13 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   }
 
 
+  /**
+   * Sets the minimum value of slider. If the new minimum is greater than the
+   * current maximum, then minimum and maximum will both be set to this value.
+   * Setting `MinValue` resets the thumb position to halfway between `MinValue`
+   * and {@link #MaxValue()} and signals the {@link #PositionChanged(float)}`
+   * event.
+   */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_FLOAT,
       defaultValue = Component.SLIDER_MIN_VALUE + "")
   @SimpleProperty(description = "Sets the minimum value of slider.  Changing the minimum value " +
@@ -264,6 +294,7 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   /**
    * Returns the value of slider min value.
    *
+   * @suppressdoc
    * @return the value of slider min value.
    */
   @SimpleProperty(category = PropertyCategory.APPEARANCE,
@@ -272,6 +303,12 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
     return minValue;
   }
 
+  /**
+   * Sets the maximum value of slider. If the new maximum is less than the
+   * current minimum, then minimum and maximum will both be set to this value.
+   * Setting `MaxValue` resets the thumb position to halfway between {@link #MinValue()}
+   * and `MaxValue` and signals the {@link #PositionChanged(float)}` event.
+   */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_FLOAT,
       defaultValue = Component.SLIDER_MAX_VALUE + "")
   @SimpleProperty(description = "Sets the maximum value of slider.  Changing the maximum value " +
@@ -293,6 +330,7 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   /**
    * Returns the slider max value
    *
+   * @suppressdoc
    * @return the slider max value
    */
   @SimpleProperty(category = PropertyCategory.APPEARANCE,
@@ -313,6 +351,7 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
   @SimpleProperty(
       description = "The color of slider to the left of the thumb.",
       category = PropertyCategory.APPEARANCE)
+  @IsColor
   public int ColorLeft() {
     return leftColor;
   }
@@ -342,8 +381,9 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
    * alpha, red, green, and blue components
    */
   @SimpleProperty(
-      description = "The color of slider to the left of the thumb.",
+      description = "The color of slider to the right of the thumb.",
       category = PropertyCategory.APPEARANCE)
+  @IsColor
   public int ColorRight() {
     return rightColor;
   }
@@ -428,17 +468,4 @@ public class Slider extends AndroidViewComponent implements SeekBar.OnSeekBarCha
     //ability to change the slider height and don't want display this in our block editor
     container.setChildHeight(this, height);
   }
-
-//  public class MySeekbar extends SeekBar{
-//
-//      public MySeekbar(Context context) {
-//          super(context);
-//      }
-//
-//      protected void onDraw(android.graphics.Canvas c) {
-//          c.rotate(-90);
-//          c.translate(-getHeight(), 0);
-//          super.onDraw(c);
-//      }
-//  }
 }

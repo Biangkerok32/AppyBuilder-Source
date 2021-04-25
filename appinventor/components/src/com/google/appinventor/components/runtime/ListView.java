@@ -1,17 +1,16 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2014 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime;
 
-// good read:   http://hmkcode.com/android-custom-listview-titles-icons-counter/
-//              http://www.vogella.com/tutorials/AndroidListView/article.html
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.text.Editable;
 import android.text.Spannable;
 import android.text.SpannableString;
@@ -19,32 +18,37 @@ import android.text.TextWatcher;
 import android.text.style.AbsoluteSizeSpan;
 import android.text.style.ForegroundColorSpan;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AbsListView;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 
-import com.google.appinventor.components.annotations.*;
-
+import android.widget.LinearLayout.LayoutParams;
+import com.google.appinventor.components.annotations.DesignerComponent;
+import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.IsColor;
+import com.google.appinventor.components.annotations.PropertyCategory;
+import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.annotations.SimpleObject;
+import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
 import com.google.appinventor.components.runtime.util.ElementsUtil;
 import com.google.appinventor.components.runtime.util.YailList;
-import com.nhaarman.listviewanimations.itemmanipulation.OnDismissCallback;
-import com.nhaarman.listviewanimations.itemmanipulation.swipedismiss.SwipeDismissAdapter;
-import com.nhaarman.listviewanimations.swinginadapters.AnimationAdapter;
-import com.nhaarman.listviewanimations.swinginadapters.prepared.*;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 /**
- * ListView Component. Non-Visible component to create a ListView in the Screen from a series of
- * elements added from a comma separated set of text elements. It is similar to the ListPicker
- * component but this one is placed on screen instead of opening a new Activity.
- * TOFO(hal): Think about generalizing this to include more than text/
+ * This is a visible component that allows to place a list of text elements in your {@link Form} to
+ * display. The list can be set using the {@link #ElementsFromString(String)} property or using the
+ * {@link #Elements(YailList)} block in the blocks editor.
+ *
+ *   Warning: This component will not work correctly on Screens that are scrollable if its
+ * {@link #Height(int)} is set to Fill Parent.
+ *
+ * @internaldoc
+ * TODO(hal): Think about generalizing this to include more than text.
  * @author halabelson@google.com (Hal Abelson)
  * @author osmidy@mit.edu (Olivier Midy)
  */
@@ -57,24 +61,21 @@ import java.util.List;
     nonVisible = false,
     iconName = "images/listView.png")
 @SimpleObject
-@UsesLibraries(libraries = "listviewanimations.jar")
-public final class ListView extends AndroidViewComponent implements AdapterView.OnItemClickListener, OnDismissCallback {
-    MyAdapter mAdapter;
-    private String animationStyle;
+public final class ListView extends AndroidViewComponent implements AdapterView.OnItemClickListener,
+    AdapterView.OnItemSelectedListener {
 
   private static final String LOG_TAG = "ListView";
 
-    private final android.widget.ListView view;
+  private final android.widget.ListView view;
   private EditText txtSearchBox;
   protected final ComponentContainer container;
   private final LinearLayout listViewLayout;
 
   // The adapter contains spannables rather than strings, since we will be changing the item
   // colors using ForegroundColorSpan
-//  private ArrayAdapter<Spannable> adapter;
+  private ArrayAdapter<Spannable> adapter;
+  private ArrayAdapter<Spannable> adapterCopy;
   private YailList items;
-    private ArrayList<String> itemsArrayList = new ArrayList<String>();
-
   private int selectionIndex;
   private String selection;
   private boolean showFilter = false;
@@ -86,17 +87,16 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   // The text color of the ListView's items.  All items have the same text color
   private int textColor;
   private static final int DEFAULT_TEXT_COLOR = Component.COLOR_WHITE;
-    private int sortOrder =0;
-//    private float fontSize = Component.FONT_DEFAULT_SIZE;
-    private String filterBarText="Search list..."; //This is the text that will be displayed for FilterBox.
 
   private int selectionColor;
   private static final int DEFAULT_SELECTION_COLOR = Component.COLOR_LTGRAY;
+  private static final Drawable UNSELECTED_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
 
-    private float textSize;
-    private static final int DEFAULT_TEXT_SIZE = 22;
-//    private int textSize;
-//    private static final int DEFAULT_TEXT_SIZE = 22;
+  private Drawable selectionDrawable;
+  private View lastSelected;
+
+  private int textSize;
+  private static final int DEFAULT_TEXT_SIZE = 22;
 
   /**
    * Creates a new ListView component.
@@ -108,8 +108,12 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
     items = YailList.makeEmptyList();
     // initialize selectionIndex which also sets selection
     SelectionIndex(0);
-      view = new android.widget.ListView(container.$context());
-      view.setOnItemClickListener(this);
+    view = new android.widget.ListView(container.$context());
+    view.setOnItemClickListener(this);
+    view.setOnItemSelectedListener(this);
+    view.setChoiceMode(android.widget.ListView.CHOICE_MODE_SINGLE);
+    view.setScrollingCacheEnabled(false);
+    view.setSelector(new StateListDrawable()); // Set to empty selector to prevent issues with dynamic highlighting
     listViewLayout = new LinearLayout(container.$context());
     listViewLayout.setOrientation(LinearLayout.VERTICAL);
 
@@ -117,15 +121,18 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
     txtSearchBox.setSingleLine(true);
     txtSearchBox.setWidth(Component.LENGTH_FILL_PARENT);
     txtSearchBox.setPadding(10, 10, 10, 10);
-        txtSearchBox.setHint(filterBarText);
-        SortOrder(0);
+    txtSearchBox.setHint("Search list...");
+    if (!AppInventorCompatActivity.isClassicMode()) {
+      txtSearchBox.setBackgroundColor(Color.WHITE);
+    }
+
     //set up the listener
     txtSearchBox.addTextChangedListener(new TextWatcher() {
 
         @Override
         public void onTextChanged(CharSequence cs, int arg1, int arg2, int arg3) {
           // When user changed the Text
-                ListView.this.mAdapter.getFilter().filter(cs);
+          adapter.getFilter().filter(cs);
         }
 
         @Override
@@ -138,8 +145,6 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
           // no-op. Required method
         }
       });
-
-        setAdapterData();
 
     if (showFilter) {
       txtSearchBox.setVisibility(View.VISIBLE);
@@ -158,14 +163,12 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
 
     textColor = DEFAULT_TEXT_COLOR;
     TextColor(textColor);
-      textSize = DEFAULT_TEXT_SIZE;
-      TextSize(textSize);
-//      fontSize = Component.FONT_DEFAULT_SIZE;
-//        TextSize(fontSize);
+    textSize = DEFAULT_TEXT_SIZE;
+    TextSize(textSize);
     ElementsFromString("");
 
     listViewLayout.addView(txtSearchBox);
-        listViewLayout.addView(view);
+    listViewLayout.addView(view);
     listViewLayout.requestLayout();
     container.$add(this);
   };
@@ -176,7 +179,7 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   }
 
   /**
-  * Sets the height of the listView on the screen
+  * Specifies the `%type%`'s vertical height, measured in pixels.
   * @param height for height length
   */
   @Override
@@ -190,7 +193,7 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   }
 
   /**
-  * Sets the width of the listView on the screen
+  * Specifies the horizontal width of the `%type%`, measured in pixels.
   * @param width for width length
   */
   @Override
@@ -204,7 +207,8 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   }
 
   /**
-   * Sets true or false to determine whether the search filter box is displayed in the ListView
+   * Sets visibility of the filter bar. `true`{:.logic.block} will show the bar,
+   * `false`{:.logic.block} will hide it.
    *
    * @param showFilter set the visibility according to this input
    */
@@ -224,6 +228,8 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
 
   /**
    * Returns true or false depending on the visibility of the Filter bar element
+   *
+   * @suppressdoc
    * @return true or false (visibility)
    */
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
@@ -233,7 +239,7 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   }
 
   /**
-   * Set a list of text elements to build a ListView
+   * Specifies the list of choices to display.
    * @param itemsList a YailList containing the strings to be added to the ListView
    */
   @SimpleProperty(description="List of text elements to show in the ListView.  This will " +
@@ -241,13 +247,13 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
       category = PropertyCategory.BEHAVIOR)
   public void Elements(YailList itemsList) {
     items = ElementsUtil.elements(itemsList, "Listview");
-        itemsArrayList = itemsToArrayList(items.toStringArray());
     setAdapterData();
   }
 
   /**
    * Elements property getter method
    *
+   * @suppressdoc
    * @return a YailList representing the list of strings to be picked from
    */
   @SimpleProperty(category = PropertyCategory.BEHAVIOR)
@@ -256,10 +262,10 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   }
 
   /**
-   * Specifies the text elements of the ListView.
+   * Set the list of choices from a string of comma-separated values.
    * @param itemstring a string containing a comma-separated list of the strings to be picked from
    */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING, defaultValue = "")
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_TEXTAREA, defaultValue = "")
   @SimpleProperty(description="The TextView elements specified as a string with the " +
       "items separated by commas " +
       "such as: Cheese,Fruit,Bacon,Radish. Each word before the comma will be an element in the " +
@@ -273,39 +279,46 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
    * Sets the items of the ListView through an adapter
    */
   public void setAdapterData(){
-        itemsArrayList = itemsToArrayList(items.toStringArray());
-        mAdapter = new MyAdapter(container.$context(), itemsArrayList);
+    adapter = new ArrayAdapter<Spannable>(container.$context(), android.R.layout.simple_list_item_1,
+        itemsToColoredText());
+    view.setAdapter(adapter);
 
-      view.setAdapter(mAdapter);
-//      adapter = new ArrayAdapter<Spannable>(container.$context(), android.R.layout.simple_list_item_1, itemsToColoredText());
-      view.setAdapter(mAdapter);
+    adapterCopy = new ArrayAdapter<Spannable>(container.$context(), android.R.layout.simple_list_item_1);
+    for (int i = 0; i < adapter.getCount(); ++i) {
+      adapterCopy.insert(adapter.getItem(i), i);
+    }
   }
 
   public Spannable[] itemsToColoredText() {
     // TODO(hal): Generalize this so that different items could have different
     // colors and even fonts and sizes
     int size = items.size();
-//        int displayTextSize = Component.FONT_DEFAULT_SIZE;
-      float displayTextSize = textSize;
+    int displayTextSize = textSize;
     Spannable [] objects = new Spannable[size];
     for (int i = 1; i <= size; i++) {
-//      String itemString = items.getString(i).toString(); // used if we use YailList as Array (new version of java bridge)
-            String itemString = items.get(i).toString();
-            // Is there a more efficient way to do this that does not
+      // Note that the ListPicker and otherPickers pickers convert Yail lists to string by calling
+      // YailList.ToStringArray.
+      // ListView however, does the string conversion via the adapter, so we must ensure
+      // that the adapter uses YailListElementToSring
+      String itemString = YailList.YailListElementToString(items.get(i));
+      // Is there a more efficient way to do conversion to spannable strings that does not
       // need to allocate new objects?
       Spannable chars = new SpannableString(itemString);
       chars.setSpan(new ForegroundColorSpan(textColor),0,chars.length(),0);
       if (!container.$form().getCompatibilityMode()) {
-        displayTextSize = (textSize * container.$form().deviceDensity());
+        displayTextSize = (int) (textSize * container.$form().deviceDensity());
       }
-      chars.setSpan(new AbsoluteSizeSpan((int) displayTextSize),0,chars.length(),0);
+      chars.setSpan(new AbsoluteSizeSpan(displayTextSize),0,chars.length(),0);
       objects[i - 1] = chars;
     }
     return objects;
   }
 
   /**
-   * Selection index property getter method.
+   * The index of the currently selected item, starting at `1`. If no item is selected, the value
+   * will be `0`. If an attempt is made to set this to a number less than `1` or greater than the
+   * number of items in the `ListView`, `SelectionIndex` will be set to `0`, and
+   * {@link #Selection(String)} will be set to the empty text.
    */
   @SimpleProperty(
       description = "The index of the currently selected item, starting at " +
@@ -320,6 +333,8 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
 
   /**
    * Sets the index to the passed argument for selection
+   *
+   * @suppressdoc
    * @param index the index to be selected
    */
   @SimpleProperty(description="Specifies the position of the selected item in the ListView. " +
@@ -333,10 +348,12 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
     selectionIndex = ElementsUtil.selectionIndex(index, items);
     // Now, we need to change Selection to correspond to SelectionIndex.
     selection = ElementsUtil.setSelectionFromIndex(index, items);
+
+    updateSelectionIndex();
   }
 
   /**
-  * Returns the text in the ListView at the position set by SelectionIndex
+  * Returns the text in the `ListView` at the position of {@link #SelectionIndex(int)}.
   */
   @SimpleProperty(description="Returns the text last selected in the ListView.",
       category = PropertyCategory
@@ -347,6 +364,8 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
 
   /**
    * Selection property setter method.
+   *
+   * @suppressdoc
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING,
       defaultValue = "")
@@ -355,6 +374,36 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
     selection = value;
     // Now, we need to change SelectionIndex to correspond to Selection.
     selectionIndex = ElementsUtil.setSelectedIndexFromValue(value, items);
+
+    updateSelectionIndex();
+  }
+
+  /**
+   * Action to take after updating selection index.
+   * Handles highlighting the newly updated item.
+   */
+  private void updateSelectionIndex() {
+    if (selectionIndex > 0) {
+      // Store last active view to refocus it later
+      View previousView = container.$form().getCurrentFocus();
+
+      // We need to request focus from the ListView in order for the
+      // drawable changes to apply to the active item view.
+      view.requestFocusFromTouch();
+
+      // Set selection to 0-based index (which will in turn call
+      // the necessary listener)
+      view.setSelection(selectionIndex - 1);
+
+      // Re-focus last view
+      if (previousView != null) {
+        previousView.requestFocus();
+      }
+    } else if (lastSelected != null) {
+        // Un-set selected drawable from the last selected item
+        lastSelected.setBackgroundDrawable(UNSELECTED_DRAWABLE);
+        lastSelected = null;
+      }
   }
 
   /**
@@ -363,14 +412,42 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
    */
   @Override
   public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        this.selection = (String) parent.getAdapter().getItem(position);
-        this.selectionIndex = position + 1;
+    Spannable item = (Spannable) parent.getAdapter().getItem(position);
+    this.selection = item.toString();
+    this.selectionIndex = adapterCopy.getPosition(item) + 1; // AI lists are 1-based
+
+    // Un-set drawable from previous last selected item
+    if (lastSelected != null) {
+      lastSelected.setBackgroundDrawable(UNSELECTED_DRAWABLE);
+    }
+
+    // Set selected drawable to current view
+    view.setBackgroundDrawable(selectionDrawable);
+
+    // Update last selected
+    lastSelected = view;
+
     AfterPicking();
   }
 
   /**
+   * Simple event to raise when the component is selected. Implementation of
+   * AdapterView.OnItemSelectedListener.
+   */
+  @Override
+  public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+    // Defer to item click
+    onItemClick(adapterView, view, i, l);
+  }
+
+  @Override
+  public void onNothingSelected(AdapterView<?> adapterView) {
+
+  }
+
+  /**
    * Simple event to be raised after the an element has been chosen in the list.
-   * The selected element is available in the Selection property.
+   * The selected element is available in the {@link #Selection(String)} property.
    */
   @SimpleEvent(description = "Simple event to be raised after the an element has been chosen in the" +
       " list. The selected element is available in the Selection property.")
@@ -402,11 +479,15 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   @SimpleProperty(
       description = "The color of the listview background.",
       category = PropertyCategory.APPEARANCE)
+  @IsColor
   public int BackgroundColor() {
     return backgroundColor;
   }
 
   /**
+   * The color of the `ListView` background.
+   *
+   * @internaldoc
    * Specifies the ListView's background color as an alpha-red-green-blue
    * integer, i.e., {@code 0xAARRGGBB}.  An alpha of {@code 00}
    * indicates fully transparent and {@code FF} means opaque.
@@ -432,11 +513,15 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
    * alpha, red, green, and blue components
    */
   @SimpleProperty(description = "The color of the item when it is selected.")
+  @IsColor
   public int SelectionColor() {
     return selectionColor;
   }
 
   /**
+   * The color of the item when it is selected.
+   *
+   * @internaldoc
    * Specifies the ListView's selection color as an alpha-red-green-blue
    * integer, i.e., {@code 0xAARRGGBB}.  An alpha of {@code 00}
    * indicates fully transparent and {@code FF} means opaque.
@@ -450,9 +535,8 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   @SimpleProperty
   public void SelectionColor(int argb) {
     selectionColor = argb;
-      view.setSelector(new GradientDrawable(
-      GradientDrawable.Orientation.TOP_BOTTOM, new int[]{argb, argb}
-    ));
+    this.selectionDrawable = new GradientDrawable(
+      GradientDrawable.Orientation.TOP_BOTTOM, new int[]{argb, argb});
   }
 
   /**
@@ -466,11 +550,15 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   @SimpleProperty(
       description = "The text color of the listview items.",
       category = PropertyCategory.APPEARANCE)
+  @IsColor
   public int TextColor() {
     return textColor;
   }
 
   /**
+   * The text color of the `ListView` items.
+   *
+   * @internaldoc
    * Specifies the ListView item's text color as an alpha-red-green-blue
    * integer, i.e., {@code 0xAARRGGBB}.  An alpha of {@code 00}
    * indicates fully transparent and {@code FF} means opaque.
@@ -487,242 +575,30 @@ public final class ListView extends AndroidViewComponent implements AdapterView.
   }
 
   /**
-     * Create a YailList from an array. Items will be sorted based on sortOrder.
-     * If 0 or invalid value, then no sorting will be performed.
-     * Note: Currently only Strings are supported
-     * @param sortOrder indicates sort order where:
-     *                  <ul>
-     *                    <li>-1 = Descending</li>
-     *                    <li>0 = no sort,</li>
-     *                    <li>1 = Ascending</li>
-     *                  </ul>
-     * @return
+   * Returns the listview's text font Size
+   *
+   * @return text size as an float
    */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_SORT_OPTIONS, defaultValue = "0")
-    @SimpleProperty(description = "Allows you to specify a sort order for the ListPicker. " +
-            "The ListPicker can be sorted in Descending(-1), None (0), Ascending(1) ")
-    public void SortOrder(int sortOrder) {
-        if (null == items || items.size() == 0 ) {
-            return;
-        }
-
-        String[] strArray = items.toStringArray();
-        if (sortOrder == 1 || sortOrder == -1) {
-            if (sortOrder == 1) Arrays.sort(strArray);
-            else Arrays.sort(strArray, Collections.reverseOrder());
-            Elements(YailList.makeList(strArray));
-            this.sortOrder=sortOrder;
-        }
-    }
-
-    @SimpleProperty(description = "Returns the ListPicker SortOrder", category = PropertyCategory.BEHAVIOR)
-    public int SortOrder() {
-        return sortOrder;
-    }
-
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_LISTVIEW_ITEM_OPTIONS, defaultValue = "Default")
-    @SimpleProperty(description = "Sets up the ListView item style. " +
-            "Valid Styles are: Default, Swipe")
-    public void ListViewItemStyle(String style) {
-        if (!"default swipe ".contains(style.toLowerCase())) {
-            throw new IllegalStateException("Invalid ListView Style.");
-        }
-        this.animationStyle = style;
-        setAdapterData();
-        setupStyle();
-    }
-
-    @SimpleProperty(description = "The font size of the ListView items",
+  @SimpleProperty(
+      description = "The text size of the listview items.",
       category = PropertyCategory.APPEARANCE)
-    public float TextSize() {
-        return this.textSize;
+  public int TextSize() {
+    return textSize;
   }
 
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_FLOAT,
-            defaultValue = Component.FONT_DEFAULT_SIZE + "")
+  /**
+   * Specifies the `ListView` item's text font size
+   *
+   * @param integer value for font size
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
+      defaultValue = DEFAULT_TEXT_SIZE + "")
   @SimpleProperty
-    public void TextSize(float size) {
-        this.textSize = size;
-        if(size>1000)
-            textSize = 999;
-        else
-            textSize = size;
-        setAdapterData();
-    }
-
-
-    private void setupStyle() {
-
-        if (animationStyle==null || animationStyle.equalsIgnoreCase("default"))  //this is the default
-        {
-            view.setAdapter(mAdapter);
-        } else if (animationStyle.equalsIgnoreCase("bottom")) {
-            setBottomAdapter();
-        } else if (animationStyle.equalsIgnoreCase("bottomright")) {
-            setBottomRightAdapter();
-        } else if (animationStyle.equalsIgnoreCase("left")) {
-            setLeftAdapter();
-        } else if (animationStyle.equalsIgnoreCase("scale")) {
-            setScaleAdapter();
-        } else if (animationStyle.equalsIgnoreCase("alpha")) {
-            setAlphaAdapter();
-        } else if (animationStyle.equalsIgnoreCase("swipe")) {
-            setSwipeDismissAdapter();
-//            isSwipeToArchive=true;
-        } else if (animationStyle.equalsIgnoreCase("right")) {
-            setRightAdapter();
-        } else {
-            setRightAdapter();
-        }
-}
-
-    private void setScaleAdapter() {
-        AnimationAdapter animAdapter = new ScaleInAnimationAdapter(mAdapter);
-        animAdapter.setAbsListView(view);
-        view.setAdapter(animAdapter);
-    }
-    private void setAlphaAdapter() {
-        AnimationAdapter animAdapter = new AlphaInAnimationAdapter(mAdapter);
-        animAdapter.setAbsListView(view);
-        view.setAdapter(animAdapter);
-    }
-
-    private void setLeftAdapter() {
-        AnimationAdapter animAdapter = new SwingLeftInAnimationAdapter(mAdapter);
-        animAdapter.setAbsListView(view);
-        view.setAdapter(animAdapter);
-    }
-
-    private void setRightAdapter() {
-        AnimationAdapter animAdapter = new SwingRightInAnimationAdapter(mAdapter);
-        animAdapter.setAbsListView(view);
-        view.setAdapter(animAdapter);
-    }
-
-    private void setBottomAdapter() {
-        AnimationAdapter animAdapter = new SwingBottomInAnimationAdapter(mAdapter);
-        animAdapter.setAbsListView(view);
-        view.setAdapter(animAdapter);
-    }
-
-    private void setBottomRightAdapter() {
-        AnimationAdapter animAdapter = new SwingBottomInAnimationAdapter(new SwingRightInAnimationAdapter(mAdapter));
-        animAdapter.setAbsListView(view);
-        view.setAdapter(animAdapter);
-    }
-    private void _setBottomRightAdapter() {
-        AnimationAdapter animAdapter = new SwingBottomInAnimationAdapter(new SwingRightInAnimationAdapter(mAdapter));
-        animAdapter.setAbsListView(view);
-
-        view.setAdapter(animAdapter);
-    }
-
-    private void setSwipeDismissAdapter() {
-        SwipeDismissAdapter adapter = new SwipeDismissAdapter(mAdapter, this);
-        adapter.setAbsListView(view);
-        view.setAdapter(adapter);
-    }
-
-
-    @Override
-    public void onDismiss(final android.widget.AbsListView view, final int[] reverseSortedPositions) {
-        String deletedItem="";
-        for (int position : reverseSortedPositions) {
-            deletedItem = mAdapter.get(position);
-            mAdapter.remove(position);
-            AfterDeleting(deletedItem, position);
-            // there is only one item that gets deleted.
-        }
-        List<String> origList = Arrays.asList(items.toStringArray());
-        ArrayList<String> itemsArrayList = new ArrayList<String>();
-        for (String anItem : origList) {
-            if (!anItem.contains(deletedItem)) {
-                itemsArrayList.add(anItem);
-//                break;
-            }
-        }
-        items = YailList.makeList(itemsArrayList);
-//        itemsArrayList.remove(reverseSortedPositions);
-//        for (String anItem : origList) {
-//            if (!itemsArrayList.contains(anItem)) {
-//                AfterDeleting(anItem);
-//                break;
-//            }
-//        }
-//        items = YailList.makeList(itemsArrayList);
-
-//        hasRemovedItems = true;
-    }
-
-    @SimpleEvent(description = "Event raised after an item is deleted")
-    public void AfterDeleting(String deletedItem, int position) {
-        EventDispatcher.dispatchEvent(this, "AfterDeleting", deletedItem, position);
-    }
-
-    @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-            description = "Returns the text that will display at top of FilterBar")
-    public String FilterBarText() {
-        return filterBarText;
-    }
-
-    //Too many properties in designer. We only show this in the block editor
-//    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING, defaultValue = "")
-    @SimpleProperty(description = "Allows you to setup a custom text to display for the ShowFilterBar. Default is 'Search list...'")
-    public void FilterBarText(String filterBarText) {
-        // set the default search string
-        this.filterBarText = "Search List...";
-        if (!(filterBarText == null || filterBarText.trim().equalsIgnoreCase(""))) {
-            // user entered valid string. Update the default
-            this.filterBarText = filterBarText;
-        }
-        txtSearchBox.setHint(this.filterBarText);
-    }
-
-    private class MyAdapter extends com.nhaarman.listviewanimations.ArrayAdapter<String> {
-
-        private final android.content.Context mContext;
-
-        public MyAdapter(final android.content.Context context, final ArrayList<String> items) {
-            super(items);
-            mContext = context;
-        }
-
-        @Override
-        public long getItemId(final int position) {
-            return getItem(position).hashCode();
-        }
-
-        @Override
-        public View getView(final int position, final View convertView, final android.view.ViewGroup parent) {
-            android.widget.TextView tv = (android.widget.TextView) convertView;
-            if (tv == null) {
-                //    adapter = new ArrayAdapter<Spannable>(container.$context(), android.R.layout.simple_list_item_1, itemsToColoredText());
-                tv = (android.widget.TextView) android.view.LayoutInflater.from(mContext).inflate(android.R.layout.simple_list_item_1, parent, false);
-                tv.setTextColor(textColor);
-//                Spannable str = (Spannable) tv.getText();
-//                str.setSpan(new ForegroundColorSpan(textColor),0,str.length(),0);
-            }
-//            DisplayMetrics metrics = mContext.getResources().getDisplayMetrics();
-//            float dp = 20f;
-//            float fpixels = metrics.density * dp;
-//            int pixels = (int) (fpixels + 0.5f);
-//            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
-            tv.setText(getItem(position));
-            tv.setTextSize(TextSize());
-
-            return tv;
-        }
-    }
-
-    private ArrayList<String> itemsToArrayList(String[] items) {
-        if (items == null || items.length==0)
-        {
-            return new ArrayList<String>(0);
-        }
-
-        ArrayList<String> alistItems = new ArrayList<String>(items.length);
-        Collections.addAll(alistItems, items);
-
-        return alistItems;
-    }
+  public void TextSize(int fontSize) {
+      if(fontSize>1000)
+        textSize = 999;
+      else
+        textSize = fontSize;
+      setAdapterData();
+  }
 }

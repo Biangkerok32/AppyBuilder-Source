@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -20,8 +17,11 @@ import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
+import com.google.appinventor.components.runtime.errors.PermissionException;
+import com.google.appinventor.components.runtime.util.BulkPermissionRequest;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.FileUtil;
+import android.Manifest;
 import android.media.MediaRecorder;
 import android.media.MediaRecorder.OnErrorListener;
 import android.media.MediaRecorder.OnInfoListener;
@@ -29,10 +29,11 @@ import android.os.Environment;
 import android.util.Log;
 
 import java.io.IOException;
-import android.Manifest;
+
 /**
- * Multimedia component that records audio using
- * {@link android.media.MediaRecorder}.
+ * ![SoundRecorder icon](images/soundrecorder.png)
+ *
+ * Multimedia component that records audio.
  *
  */
 @DesignerComponent(version = YaVersion.SOUND_RECORDER_COMPONENT_VERSION,
@@ -57,7 +58,6 @@ public final class SoundRecorder extends AndroidNonvisibleComponent
   // Whether or not we have the RECORD_AUDIO permission
   private boolean havePermission = false;
 
-
   /**
    * This class encapsulates the required state during recording.
    */
@@ -71,7 +71,7 @@ public final class SoundRecorder extends AndroidNonvisibleComponent
     RecordingController(String savedRecording) throws IOException {
       // pick a pathname if none was specified
       file = (savedRecording.equals("")) ?
-          FileUtil.getRecordingFile("3gp").getAbsolutePath() :
+          FileUtil.getRecordingFile(form, "3gp").getAbsolutePath() :
             savedRecording;
 
       recorder = new MediaRecorder();
@@ -88,8 +88,9 @@ public final class SoundRecorder extends AndroidNonvisibleComponent
 
     void start() throws IllegalStateException {
       Log.i(TAG, "starting");
+
       try {
-      recorder.start();
+        recorder.start();
       } catch (IllegalStateException e) {
         // This is the error produced when there are two recorders running.
         // There might be other causes, but we don't know them.
@@ -122,13 +123,16 @@ public final class SoundRecorder extends AndroidNonvisibleComponent
 
 
   /**
-   * Returns the path to the saved recording
+   * Specifies the path to the file where the recording should be stored. If this property is the
+   * empty string, then starting a recording will create a file in an appropriate location. If the
+   * property is not the empty string, it should specify a complete path to a file in an existing
+   * directory, including a file name with the extension .3gp.
    *
    * @return  savedRecording path to recording
    */
   @SimpleProperty(
       description = "Specifies the path to the file where the recording should be stored. " +
-          "If this proprety is the empty string, then starting a recording will create a file in " +
+          "If this property is the empty string, then starting a recording will create a file in " +
           "an appropriate location.  If the property is not the empty string, it should specify " +
           "a complete path to a file in an existing directory, including a file name with the " +
           "extension .3gp." ,
@@ -140,6 +144,7 @@ public final class SoundRecorder extends AndroidNonvisibleComponent
   /**
    * Specifies the path to the saved recording displayed by the label.
    *
+   * @suppressdoc
    * @param pathName  path to saved recording
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING,
@@ -154,25 +159,20 @@ public final class SoundRecorder extends AndroidNonvisibleComponent
    */
   @SimpleFunction
   public void Start() {
-    // Need to check if we have RECORD_AUDIO permission
+    // Need to check if we have RECORD_AUDIO and WRITE_EXTERNAL permissions
     if (!havePermission) {
       final SoundRecorder me = this;
       form.runOnUiThread(new Runnable() {
         @Override
         public void run() {
-          form.askPermission(Manifest.permission.RECORD_AUDIO,
-                  new PermissionResultHandler() {
-                    @Override
-                    public void HandlePermissionResponse(String permission, boolean granted) {
-                      if (granted) {
-                        me.havePermission = true;
-                        me.Start();
-                      } else {
-                        form.dispatchErrorOccurredEvent(me, "SoundRecorder",
-                                ErrorMessages.ERROR_SOUND_NO_PERMISSION);
-                      }
-                    }
-                  });
+          form.askPermission(new BulkPermissionRequest(me, "Start",
+                  Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE) {
+            @Override
+            public void onGranted() {
+              me.havePermission = true;
+              me.Start();
+            }
+          });
         }
       });
       return;
@@ -190,6 +190,9 @@ public final class SoundRecorder extends AndroidNonvisibleComponent
     }
     try {
       controller = new RecordingController(savedRecording);
+    } catch (PermissionException e) {
+      form.dispatchPermissionDeniedEvent(this, "Start", e);
+      return;
     } catch (Throwable t) {
       form.dispatchErrorOccurredEvent(
           this, "Start", ErrorMessages.ERROR_SOUND_RECORDER_CANNOT_CREATE, t.getMessage());
@@ -232,7 +235,6 @@ public final class SoundRecorder extends AndroidNonvisibleComponent
       Log.w(TAG, "onInfo called with wrong recorder. Ignoring.");
       return;
     }
-    Log.i(TAG, "Recoverable condition while recording. Will attempt to stop normally.");
     switch (what) {
     case MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED:
       form.dispatchErrorOccurredEvent(this, "recording",

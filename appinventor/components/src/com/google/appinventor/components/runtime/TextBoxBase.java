@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -9,14 +6,16 @@
 
 package com.google.appinventor.components.runtime;
 
-import android.graphics.PorterDuff;
-import android.graphics.Typeface;
-import android.util.Log;
-import com.google.appinventor.components.annotations.*;
+import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.IsColor;
+import com.google.appinventor.components.annotations.PropertyCategory;
+import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.annotations.SimpleFunction;
+import com.google.appinventor.components.annotations.SimpleObject;
+import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.common.ComponentConstants;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.runtime.util.EclairUtil;
-import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.TextViewUtil;
 import com.google.appinventor.components.runtime.util.ViewUtil;
 
@@ -26,8 +25,6 @@ import android.os.Build;
 import android.view.View;
 import android.view.View.OnFocusChangeListener;
 import android.widget.EditText;
-
-import java.io.IOException;
 
 /**
  * Underlying base class for TextBox, not directly accessible to Simple
@@ -65,10 +62,6 @@ public abstract class TextBoxBase extends AndroidViewComponent
 
   // This is our handle on Android's nice 3-d default textbox.
   private Drawable defaultTextBoxDrawable;
-
-  private String typefaceFileName;
-
-  private String LOG_TAG = "TextBoxBase";
 
   /**
    * Creates a new TextBoxBase component
@@ -118,8 +111,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
     FontSize(Component.FONT_DEFAULT_SIZE);
     Hint("");
     Text("");
-    TextColor(Component.COLOR_BLACK);
-    view.getBackground().setColorFilter(-8205116, PorterDuff.Mode.SRC_IN);
+    TextColor(Component.COLOR_DEFAULT);
   }
 
   @Override
@@ -128,19 +120,21 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Event raised when this component is selected for input, such as by
+   * Event raised when the `%type%` is selected for input, such as by
    * the user touching it.
    */
-  @SimpleEvent
+  @SimpleEvent(description = "Event raised when the %type% is selected for input, such as by "
+      + "the user touching it.")
   public void GotFocus() {
     EventDispatcher.dispatchEvent(this, "GotFocus");
   }
 
   /**
-   * Event raised when this component is no longer selected for input, such
+   * Event raised when the `%type%` is no longer selected for input, such
    * as if the user touches a different text box.
    */
-  @SimpleEvent
+  @SimpleEvent(description = "Event raised when the %type% is no longer selected for input, such "
+      + "as if the user touches a different text box.")
   public void LostFocus() {
     EventDispatcher.dispatchEvent(this, "LostFocus");
   }
@@ -156,7 +150,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
   */
 
   /**
-   * Returns the alignment of the textbox's text: center, normal
+   * Returns the alignment of the `%type%`'s text: center, normal
    * (e.g., left-justified if text is written left to right), or
    * opposite (e.g., right-justified if text is written left to right).
    *
@@ -174,9 +168,10 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Specifies the alignment of the textbox's text: center, normal
-   * (e.g., left-justified if text is written left to right), or
-   * opposite (e.g., right-justified if text is written left to right).
+   * Specifies the alignment of the `%type%`'s text. Valid values are:
+   * `0` (normal; e.g., left-justified if text is written left to right),
+   * `1` (center), or
+   * `2` (opposite; e.g., right-justified if text is written left to right).
    *
    * @param alignment  one of {@link Component#ALIGNMENT_NORMAL},
    *                   {@link Component#ALIGNMENT_CENTER} or
@@ -192,7 +187,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Returns the textbox's background color as an alpha-red-green-blue
+   * Returns the background color of the %type% as an alpha-red-green-blue
    * integer.
    *
    * @return  background RGB color with alpha
@@ -202,12 +197,17 @@ public abstract class TextBoxBase extends AndroidViewComponent
       description = "The background color of the input box.  You can choose " +
       "a color by name in the Designer or in the Blocks Editor.  The " +
       "default background color is 'default' (shaded 3-D look).")
+  @IsColor
   public int BackgroundColor() {
     return backgroundColor;
   }
 
   /**
-   * Specifies the textbox's background color as an alpha-red-green-blue
+   * The background color of the `%type%``. You can choose a color by name in the Designer or in
+   * the Blocks Editor. The default background color is 'default' (shaded 3-D look).
+   *
+   * @internaldoc
+   * Specifies the background color of the `%type%` as an alpha-red-green-blue
    * integer.
    *
    * @param argb  background RGB color with alpha
@@ -225,20 +225,23 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Returns true if the textbox is active and useable.
+   * Returns true if the %type% is active and useable.
    *
    * @return  {@code true} indicates enabled, {@code false} disabled
    */
   @SimpleProperty(
       category = PropertyCategory.BEHAVIOR,
-      description = "Whether the user can enter text into this input box.  " +
+      description = "Whether the user can enter text into the %type%.  " +
       "By default, this is true.")
   public boolean Enabled() {
     return TextViewUtil.isEnabled(view);
   }
 
   /**
-   * Specifies whether the textbox should be active and useable.
+   * If set, user can enter text into the `%type%`.
+   *
+   * @internaldoc
+   * Specifies whether the %type% should be active and usable.
    *
    * @param enabled  {@code true} for enabled, {@code false} disabled
    */
@@ -250,7 +253,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Returns true if the textbox's text should be bold.
+   * Returns true if the text of the %type% should be bold.
    * If bold has been requested, this property will return true, even if the
    * font does not support bold.
    *
@@ -266,7 +269,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Specifies whether the textbox's text should be bold.
+   * Specifies whether the text of the `%type%` should be bold.
    * Some fonts do not support bold.
    *
    * @param bold  {@code true} indicates bold, {@code false} normal
@@ -280,13 +283,8 @@ public abstract class TextBoxBase extends AndroidViewComponent
     TextViewUtil.setFontTypeface(view, fontTypeface, bold, italic);
   }
 
-  @SimpleFunction(description = "Place a blurred shadow of text underneath the text, drawn with the specified x, y, radius, color (e.g. -11, 12, 13, black ")
-  public void SetShadow(float x, float y, float radius, int color) {
-    TextViewUtil.setShadow(view, x, y, radius, color);
-  }
-
   /**
-   * Returns true if the textbox's text should be italic.
+   * Returns true if the text of the %type% should be italic.
    * If italic has been requested, this property will return true, even if the
    * font does not support italic.
    *
@@ -302,7 +300,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Specifies whether the textbox's text should be italic.
+   * Specifies whether the text of the `%type%` should be italic.
    * Some fonts do not support italic.
    *
    * @param italic  {@code true} indicates italic, {@code false} normal
@@ -316,7 +314,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Returns the textbox's text's font size, measured in sp(scale-independent pixels).
+   * Returns the text font size of the %type%, measured in sp(scale-independent pixels).
    *
    * @return  font size in sp(scale-independent pixels).
    */
@@ -329,7 +327,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Specifies the textbox's text's font size, measured in sp(scale-independent pixels).
+   * Specifies the text font size of the `%type%`, measured in sp(scale-independent pixels).
    *
    * @param size  font size in pixel
    */
@@ -341,7 +339,7 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Returns the textbox's text's font face as default, serif, sans
+   * Returns the text font face of the %type% as default, serif, sans
    * serif, or monospace.
    *
    * @return  one of {@link Component#TYPEFACE_DEFAULT},
@@ -359,8 +357,8 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Specifies the textbox's text's font face as default, serif, sans
-   * serif, or monospace.
+   * The text font face of the `%type%`. Valid values are `0` (default), `1` (serif), `2` (sans
+   * serif), or `3` (monospace).
    *
    * @param typeface  one of {@link Component#TYPEFACE_DEFAULT},
    *                  {@link Component#TYPEFACE_SERIF},
@@ -383,14 +381,17 @@ public abstract class TextBoxBase extends AndroidViewComponent
    */
   @SimpleProperty(
       category = PropertyCategory.APPEARANCE,
-      description = "Text that should appear faintly in the input box to " +
+      description = "Text that should appear faintly in the %type% to " +
       "provide a hint as to what the user should enter.  This can only be " +
-      "seen if the <code>Text</code> property is empty.")
+      "seen if the Text property is empty.")
   public String Hint() {
     return hint;
   }
 
   /**
+   * `%type%` hint for the user.
+   *
+   * @internaldoc
    * Hint property setter method.
    *
    * @param hint  hint text
@@ -400,7 +401,6 @@ public abstract class TextBoxBase extends AndroidViewComponent
   @SimpleProperty
   public void Hint(String hint) {
     this.hint = hint;
-    view.setHintTextColor(-6381922);
     view.setHint(hint);
     view.invalidate();
   }
@@ -416,7 +416,8 @@ public abstract class TextBoxBase extends AndroidViewComponent
   }
 
   /**
-   * Specifies the textbox contents.
+   * The text in the `%type%`, which can be set by the programmer in the Designer or Blocks Editor,
+   * or it can be entered by the user (unless the {@link #Enabled(boolean)} property is false).
    *
    * @param text  new text in text box
    */
@@ -425,17 +426,15 @@ public abstract class TextBoxBase extends AndroidViewComponent
   @SimpleProperty(
       // This kind of breaks the appearance/behavior dichotomy
       category = PropertyCategory.BEHAVIOR,
-      description = "The text in the input box, which can be set by the " +
+      description = "The text in the %type%, which can be set by the " +
       "programmer in the Designer or Blocks Editor, or it can be entered by " +
       "the user (unless the <code>Enabled</code> property is false).")
   public void Text(String text) {
-    // If I do below, then it will make the subclass PasswordTextBox to show characters. We don't want that
-//    view.setTransformationMethod(null);
     TextViewUtil.setText(view, text);
   }
 
   /**
-   * Returns the textbox's text color as an alpha-red-green-blue
+   * Returns the text color of the %type% as an alpha-red-green-blue
    * integer.
    *
    * @return  text RGB color with alpha
@@ -445,12 +444,13 @@ public abstract class TextBoxBase extends AndroidViewComponent
       description = "The color for the text.  You can choose a color by name " +
       "in the Designer or in the Blocks Editor.  The default text color is " +
       "black.")
+  @IsColor
   public int TextColor() {
     return textColor;
   }
 
   /**
-   * Specifies the textbox's text color as an alpha-red-green-blue
+   * Specifies the text color of the `%type%` as an alpha-red-green-blue
    * integer.
    *
    * @param argb  text RGB color with alpha
@@ -463,15 +463,15 @@ public abstract class TextBoxBase extends AndroidViewComponent
     if (argb != Component.COLOR_DEFAULT) {
       TextViewUtil.setTextColor(view, argb);
     } else {
-      TextViewUtil.setTextColor(view, Component.COLOR_BLACK);
+      TextViewUtil.setTextColor(view, container.$form().isDarkTheme() ? COLOR_WHITE : Component.COLOR_BLACK);
     }
   }
 
   /**
-   * Request focus to current textbox.
+   * Request focus to current `%type%`.
    */
   @SimpleFunction(
-    description = "Sets the textbox active.")
+    description = "Sets the %type% active.")
   public void RequestFocus() {
     view.requestFocus();
   }
@@ -491,46 +491,4 @@ public abstract class TextBoxBase extends AndroidViewComponent
       LostFocus();
     }
   }
-
-  /**
-   * Specifies the typeface to be used. Type typeface file should've been up uploaded
-   *
-   * @param fontFileName  type uploaded typeface file
-   */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET,
-      defaultValue = "")
-  @SimpleProperty
-  public void FontTypefaceCustom(String fontFileName) {
-    if (fontFileName == null || fontFileName.trim().length()==0) {
-      return;
-    }
-
-    Typeface localTypeface1 = null;
-    try {
-      localTypeface1 = Typeface.createFromFile(MediaUtil.getMediaFile(container.$form(), fontFileName));
-    } catch (IOException e) {
-      Log.e(LOG_TAG, "Unable to load your font: " + fontFileName);
-      return;
-    }
-
-    if (localTypeface1 != null) {
-      view.setTypeface(localTypeface1);
-      typefaceFileName = fontFileName;
-    }
-  }
-  /**
-   * Returns the name of current typeface file name that is used
-   *
-   * @return  {@code true} indicates italic, {@code false} normal
-   */
-  @SimpleProperty(
-      description = "The name of current typeface file name that is used",
-      category = PropertyCategory.APPEARANCE)
-  public String FontTypefaceCustom() {
-    return typefaceFileName;
-  }
-
-
-  // OnFocusChangeListener implementation
-
 }

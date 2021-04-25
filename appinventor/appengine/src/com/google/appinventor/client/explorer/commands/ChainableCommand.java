@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -159,6 +156,15 @@ public abstract class ChainableCommand {
    * @param node the project node to which the command is applied
    */
   protected abstract void execute(ProjectNode node);
+
+  /**
+   * Check if the command can be used for the project node.
+   * @param node the project node to which the command is applied
+   * @return
+   */
+  protected boolean isSupported(ProjectNode node) {
+    return true;
+  }
 
   /**
    * Executes the next command in the chain.

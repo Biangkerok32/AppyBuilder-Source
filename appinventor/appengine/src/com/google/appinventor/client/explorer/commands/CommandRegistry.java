@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -68,14 +65,11 @@ public class CommandRegistry extends MultiRegistry<ProjectNode, CommandRegistry.
 
     // Files
     registerCommand(FileNode.class, new ProjectNodeCommand(MESSAGES.previewFileCommand(),
-    Tracking.PROJECT_ACTION_PREVIEW_FILE_YA, new PreviewFileCommand()));
-
+        Tracking.PROJECT_ACTION_PREVIEW_FILE_YA, new PreviewFileCommand()));
     registerCommand(FileNode.class, new ProjectNodeCommand(MESSAGES.deleteFileCommand(),
-//        Tracking.PROJECT_ACTION_DELETE_FILE_YA, new DeleteFileCommand()));
-    Tracking.PROJECT_ACTION_DELETE_FILE_YA, new DeleteFileCommand()));
+        Tracking.PROJECT_ACTION_DELETE_FILE_YA, new DeleteFileCommand()));
     registerCommand(FileNode.class, new ProjectNodeCommand(MESSAGES.downloadFileCommand(),
-//        Tracking.PROJECT_ACTION_DOWNLOAD_FILE_YA, new DownloadFileCommand()));
-            Tracking.PROJECT_ACTION_DOWNLOAD_FILE_YA, new DownloadFileCommand()));
+        Tracking.PROJECT_ACTION_DOWNLOAD_FILE_YA, new DownloadFileCommand()));
   }
 
   /**

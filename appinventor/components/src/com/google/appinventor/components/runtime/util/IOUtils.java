@@ -5,10 +5,10 @@
 
 package com.google.appinventor.components.runtime.util;
 
-import android.util.Log;
-
 import java.io.Closeable;
 import java.io.IOException;
+
+import android.util.Log;
 
 public final class IOUtils {
   /**

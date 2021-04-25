@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -16,17 +13,18 @@ import com.google.appinventor.shared.rpc.project.ChecksumedLoadFile;
 import com.google.appinventor.shared.rpc.project.ChecksumedFileException;
 import com.google.appinventor.shared.rpc.project.NewProjectParameters;
 import com.google.appinventor.shared.rpc.project.ProjectRootNode;
+import com.google.appinventor.shared.rpc.project.TextFile;
+import com.google.appinventor.shared.rpc.project.UserProject;
 import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.storage.StorageUtil;
 import com.google.appinventor.shared.util.Base64Util;
 
-import java.util.List;
-import com.google.appinventor.shared.rpc.project.TextFile;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 
 /**
  * The base class for classes that provide project services for a specific
@@ -85,14 +83,22 @@ public abstract class CommonProjectService {
   }
 
   /**
-   * Sets the project's gallery id.
+   * Send a project to the new Gallery
    *
    * @param userId the user id
-   * @param projectId  project ID as received by
+   * @param projectId the project ID to send
    */
-  public void setGalleryId(String userId, long projectId, long galleryId) {
-    storageIo.setProjectGalleryId(userId, projectId, galleryId);
-  }
+  public abstract RpcResult sendToGallery(String userId, long projectId);
+
+  /**
+   * loadFromGallery -- Load a project from the gallery
+   *
+   * @param userId the userId to load the project into
+   * @param galleryId the unique gallery ID for this project
+   */
+
+  public abstract UserProject loadFromGallery(String userId, String galleryId) throws IOException;
+
   /**
    * Returns the project root node for the requested project.
    *
@@ -120,21 +126,6 @@ public abstract class CommonProjectService {
     return storageIo.uploadRawFileForce(projectId, fileId, userId, new byte[0]);
   }
 
-  /**
-   * Adds a new screen to the given project.
-   *
-   * @param userId the user id
-   * @param projectId  project ID
-   * @param fileId  ID of file to delete
-   * @return modification date for project
-   */
-  public long copyScreen(String userId, long projectId, String targetFormFileId, String fileId) {
-    List<String> sourceFiles = storageIo.getProjectSourceFiles(userId, projectId);
-    if (!sourceFiles.contains(fileId)) {
-      storageIo.addSourceFilesToProject(userId, projectId, false, fileId);
-    }
-    return storageIo.uploadRawFileForce(projectId, fileId, userId, new byte[0]);
-  }
   /**
    * Deletes a file in the given project.
    *
@@ -340,10 +331,11 @@ public abstract class CommonProjectService {
    * @param projectId  project id to be built
    * @param nonce -- random string used to find finished APK
    * @param target  build target (optional, implementation dependent)
+   * @param secondBuildserver use second buildserver
    *
    * @return  build results
    */
-  public abstract RpcResult build(User user, long projectId, String nonce, String target);
+  public abstract RpcResult build(User user, long projectId, String nonce, String target, boolean secondBuildserver, boolean isAab);
 
   /**
    * Gets the result of a build command for the project.
@@ -357,7 +349,6 @@ public abstract class CommonProjectService {
    *           -1: Build is not yet done.
    */
   public abstract RpcResult getBuildResult(User user, long projectId, String target);
-
 
   public TextFile importMedia(String userId, long projectId, String urlString, boolean save) throws IOException {
     InputStream is = null;
@@ -396,5 +387,4 @@ public abstract class CommonProjectService {
       }
     }
   }
-
 }

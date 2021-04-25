@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-/// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
-// Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+/// Copyright 2009-2011 Google, All Rights reserved
+// Copyright 2011-2018 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -20,6 +17,7 @@ import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
+import com.google.appinventor.components.runtime.errors.PermissionException;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.SdkLevel;
@@ -36,6 +34,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * A multimedia component that plays sound files and optionally vibrates for the number of
+ * milliseconds (thousandths of a second) specified in the Blocks Editor. The name of the sound
+ * file to play can be specified either in the Designer or in the Blocks Editor.
+ *
+ * For supported sound file formats, see
+ * [Android Supported Media Formats](//developer.android.com/guide/appendix/media-formats.html).
+ *
+ * This `Sound` component is best for short sound files, such as sound effects, while the
+ * {@link Player} component is more efficient for longer sounds, such as songs.
+ *
+ * @internaldoc
  * Multimedia component that plays sounds and optionally vibrates.  A
  * sound is specified via filename.  See also
  * {@link android.media.SoundPool}.
@@ -110,7 +119,6 @@ public class Sound extends AndroidNonvisibleComponent
   private int minimumInterval;            // minimum interval between Play() calls
   private long timeLastPlayed;            // the system time when Play() was last called
   private final Vibrator vibe;
-  private float playbackRate;
   private final Handler playWaitHandler = new Handler();
 
   //save a pointer to this Sound component to use in the error in postDelayed below
@@ -134,7 +142,7 @@ public class Sound extends AndroidNonvisibleComponent
 
     // Default property values
     MinimumInterval(500);
-    PlaybackRate(1.0f);
+
     if (waitForLoadToComplete) {
       new OnLoadHelper().setOnloadCompleteListener(soundPool);
     }
@@ -154,8 +162,10 @@ public class Sound extends AndroidNonvisibleComponent
   }
 
   /**
-   * Sets the sound source
+   * The name of the sound file. Only certain formats are supported.
+   * See http://developer.android.com/guide/appendix/media-formats.html.
    *
+   * @internaldoc
    * <p/>See {@link MediaUtil#determineMediaSource} for information about what
    * a path can be.
    *
@@ -193,6 +203,8 @@ public class Sound extends AndroidNonvisibleComponent
             form.dispatchErrorOccurredEvent(this, "Source",
                 ErrorMessages.ERROR_UNABLE_TO_LOAD_MEDIA, sourcePath);
           }
+        } catch (PermissionException e) {
+          form.dispatchPermissionDeniedEvent(this, "Source", e);
         } catch (IOException e) {
           form.dispatchErrorOccurredEvent(this, "Source",
               ErrorMessages.ERROR_UNABLE_TO_LOAD_MEDIA, sourcePath);
@@ -217,9 +229,9 @@ public class Sound extends AndroidNonvisibleComponent
   }
 
   /**
-   * Specify the minimum interval required between calls to Play(), in
+   * Specifies the minimum interval required between calls to {@link #Play()}, in
    * milliseconds.
-   * Once the sound starts playing, all further Play() calls will be ignored
+   * Once the sound starts playing, all further {@link #Play()} calls will be ignored
    * until the interval has elapsed.
    * @param interval  minimum interval in ms
    */
@@ -286,7 +298,7 @@ public class Sound extends AndroidNonvisibleComponent
 
   private void playAndCheckResult() {
     streamId = soundPool.play(soundId, VOLUME_FULL, VOLUME_FULL, 0, LOOP_MODE_NO_LOOP,
-            playbackRate);
+        PLAYBACK_RATE_NORMAL);
   Log.i("Sound", "SoundPool.play returned stream id " + streamId);
   if (streamId == 0) {
     form.dispatchErrorOccurredEvent(this, "Play",
@@ -338,27 +350,6 @@ public class Sound extends AndroidNonvisibleComponent
   @SimpleFunction(description = "Vibrates for the specified number of milliseconds.")
   public void Vibrate(int millisecs) {
     vibe.vibrate(millisecs);
-  }
-
- /**
-   * Changes the sound playback rate
-   */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_FLOAT, defaultValue = "1.0")
-  @SimpleProperty(description = "Change playback rate. The playback rate allows the application to vary the playback rate (pitch) " +
-          "of the sound. A value of 1.0 means playback at the original frequency. A value of 2.0 means playback twice as fast, " +
-          "and a value of 0.5 means playback at half speed")
-  public void PlaybackRate(float playbackRate) {
-    if (playbackRate <= 0) {playbackRate = 1;}
-    this.playbackRate = playbackRate;
-  }
-
-  /**
-   * Returns the playbackRate.
-   * @return  the playbackRate
-   */
-  @SimpleProperty(category = PropertyCategory.BEHAVIOR, description = "The playback rate")
-  public float PlaybackRate() {
-    return playbackRate;
   }
 
   @SimpleEvent(description = "The SoundError event is no longer used. " +

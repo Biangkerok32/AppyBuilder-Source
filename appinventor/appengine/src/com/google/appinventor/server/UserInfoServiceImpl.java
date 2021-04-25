@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -27,7 +24,7 @@ import com.google.appinventor.shared.storage.StorageUtil;
 public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements UserInfoService {
 
   // Storage of user settings
-  private final transient StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+  private final transient StorageIo storageIo = StorageIoInstanceHolder.getInstance();
 
   private static final long serialVersionUID = -7316312435338169166L;
 
@@ -64,9 +61,15 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
     config.setGuideUrl(Flag.createFlag("guide.url", "").get());
     config.setReferenceComponentsUrl(Flag.createFlag("reference.components.url", "").get());
     config.setFirebaseURL(Flag.createFlag("firebase.url", "").get());
-//    config.setPrivateFfirebaseURL(Flag.createFlag("private.firebase.url", "").get());
     config.setDefaultCloudDBserver(Flag.createFlag("clouddb.server", "").get());
     config.setNoop(Flag.createFlag("session.noop", 0).get());
+    config.setGalleryEnabled(Flag.createFlag("gallery.enabled", false).get());
+    config.setGalleryReadOnly(Flag.createFlag("gallery.readonly", false).get());
+    config.setGalleryLocation(Flag.createFlag("gallery.location", "").get());
+
+    if (!Flag.createFlag("build2.server.host", "").get().isEmpty()) {
+      config.setSecondBuildserver(true);
+    }
 
     // Check to see if we need to upgrade this user's project to GCS
     storageIo.checkUpgrade(userInfoProvider.getUserId());
@@ -109,16 +112,6 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
   }
 
   /**
-   * Returns user information based on userId.
-   *
-   * @return  user information record
-   */
-  @Override
-  public User getUserInformationByUserId(String userId) {
-    return storageIo.getUser(userId);
-  }
-
-  /**
    * Retrieves the user's settings.
    *
    * @return  user's settings
@@ -148,33 +141,6 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
   }
 
   /**
-   * Stores the user's name.
-   * @param name  user's name
-   */
-  @Override
-  public void storeUserName(String name) {
-    storageIo.setUserName(userInfoProvider.getUserId(), name);
-  }
-
-  /**
-   * Stores the user's link.
-   * @param link  user's link
-   */
-  @Override
-  public void storeUserLink(String link) {
-    storageIo.setUserLink(userInfoProvider.getUserId(), link);
-  }
-
-  /**
-   * Stores the user's email notification frequency.
-   * @param emailFrequency  user's email frequency
-   */
-  @Override
-  public void storeUserEmailFrequency(int emailFrequency) {
-    storageIo.setUserEmailFrequency(userInfoProvider.getUserId(), emailFrequency);
-  }
-
-  /**
    * Returns true if the current user has a user file with the given file name
    */
   @Override
@@ -197,6 +163,33 @@ public class UserInfoServiceImpl extends OdeRemoteServiceServlet implements User
    */
   @Override
   public void noop() {
+  }
+
+  /**
+   * fetch the contents of a shared backpack.
+   *
+   * @param BackPackId the uuid of the backpack
+   * @return the backpack's content as an XML string
+   */
+
+  @Override
+  public String getSharedBackpack(String backPackId) {
+    return storageIo.downloadBackpack(backPackId);
+  }
+
+  /**
+   * store a shared backpack.
+   *
+   * Note: We overwrite any existing backpack. If merging of contents
+   * is desired, our caller has to take care of it.
+   *
+   * @param BackPackId the uuid of the shared backpack
+   * @param the new contents of the backpack
+   */
+
+  @Override
+  public void storeSharedBackpack(String backPackId, String content) {
+    storageIo.uploadBackpack(backPackId, content);
   }
 
 }

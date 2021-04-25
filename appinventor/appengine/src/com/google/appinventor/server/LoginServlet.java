@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2014 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
 
 package com.google.appinventor.server;
@@ -38,7 +35,6 @@ import java.security.spec.InvalidKeySpecException;
 
 import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.logging.Logger;
 
@@ -68,7 +64,7 @@ import org.owasp.html.PolicyFactory;
 @SuppressWarnings("unchecked")
 public class LoginServlet extends HttpServlet {
 
-  private final StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+  private final StorageIo storageIo = StorageIoInstanceHolder.getInstance();
   private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
   private static final Flag<String> mailServer = Flag.createFlag("localauth.mailserver", "");
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
@@ -99,24 +95,28 @@ public class LoginServlet extends HttpServlet {
     // These params are passed around so they can take effect even if we
     // were not logged in.
     String locale = params.get("locale");
-    if (locale == null) {
-      locale = "en";
-    }
     String repo = params.get("repo");
     String galleryId = params.get("galleryId");
     String redirect = params.get("redirect");
+    String autoload = params.get("autoload");
+    String newGalleryId = params.get("ng");
 
     if (DEBUG) {
       LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
     }
-    ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
+    ResourceBundle bundle;
+    if (locale == null) {
+      bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale("en"));
+    } else {
+      bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
+    }
 
     if (page.equals("google")) {
       // We get here after we have gone through the Google Login page
       // This is arranged via a security-constraint setup in web.xml
       com.google.appengine.api.users.User apiUser = userService.getCurrentUser();
       if (apiUser == null) {  // Hmmm. I don't think this should happen
-        fail(req, resp, "Google Authentication Failed"); // Not sure what else to do
+        fail(req, resp, "Google Authentication Failed", locale); // Not sure what else to do
         return;
       }
       String email = apiUser.getEmail();
@@ -152,6 +152,8 @@ public class LoginServlet extends HttpServlet {
       uri = new UriBuilder(uri)
         .add("locale", locale)
         .add("repo", repo)
+        .add("autoload", autoload)
+        .add("ng", newGalleryId)
         .add("galleryId", galleryId).build();
       resp.sendRedirect(uri);
       return;
@@ -160,15 +162,16 @@ public class LoginServlet extends HttpServlet {
         if (useGoogle.get() == false) {
           out = setCookieOutput(userInfo, resp);
           out.println("<html><head><title>Error</title></head>\n");
-          out.println("<body><h1>AppyBuilder is Mis-Configured</h1>\n");
-          out.println("<p>This instance of AppyBuilder has no authentication mechanism configured.</p>\n");
+          out.println("<body><h1>App Inventor is Mis-Configured</h1>\n");
+          out.println("<p>This instance of App Inventor has no authentication mechanism configured.</p>\n");
           out.println("</body>\n");
           out.println("</html>\n");
           return;
         }
         String uri = new UriBuilder("/login/google")
-          .add("locale", locale)
+          .add("locale", "en".equals(locale) ? null : locale)
           .add("repo", repo)
+          .add("ng", newGalleryId)
           .add("galleryId", galleryId)
           .add("redirect", redirect).build();
         resp.sendRedirect(uri);
@@ -181,12 +184,12 @@ public class LoginServlet extends HttpServlet {
     if (page.equals("setpw")) {
       String uid = getParam(req);
       if (uid == null) {
-        fail(req, resp, "Invalid Set Password Link");
+        fail(req, resp, "Invalid Set Password Link", locale);
         return;
       }
       PWData data = storageIo.findPWData(uid);
       if (data == null) {
-        fail(req, resp, "Invalid Set Password Link");
+        fail(req, resp, "Invalid Set Password Link", locale);
         return;
       }
       if (DEBUG) {
@@ -246,8 +249,10 @@ public class LoginServlet extends HttpServlet {
     req.setAttribute("localeLabel", locale);
     req.setAttribute("pleaselogin", bundle.getString("pleaselogin"));
     req.setAttribute("login", bundle.getString("login"));
+    req.setAttribute("autoload", autoload);
     req.setAttribute("repo", repo);
     req.setAttribute("locale", locale);
+    req.setAttribute("ng", newGalleryId);
     req.setAttribute("galleryId", galleryId);
     try {
       req.getRequestDispatcher("/login.jsp").forward(req, resp);
@@ -279,7 +284,9 @@ public class LoginServlet extends HttpServlet {
     String locale = params.get("locale");
     String repo = params.get("repo");
     String galleryId = params.get("galleryId");
+    String newGalleryId = params.get("ng");
     String redirect = params.get("redirect");
+    String autoload = params.get("autoload");
 
     if (locale == null) {
       locale = "en";
@@ -293,13 +300,13 @@ public class LoginServlet extends HttpServlet {
     if (page.equals("sendlink")) {
       String email = params.get("email");
       if (email == null) {
-        fail(req, resp, "No Email Address Provided");
+        fail(req, resp, "No Email Address Provided", locale);
         return;
       }
       // Send email here, for now we put it in the error string and redirect
       PWData pwData = storageIo.createPWData(email);
       if (pwData == null) {
-        fail(req, resp, "Internal Error");
+        fail(req, resp, "Internal Error", locale);
         return;
       }
       String link = trimPage(req) + pwData.id + "/setpw";
@@ -309,23 +316,23 @@ public class LoginServlet extends HttpServlet {
       return;
     } else if (page.equals("setpw")) {
       if (userInfo == null || userInfo.getUserId().equals("")) {
-        fail(req, resp, "Session Timed Out");
+        fail(req, resp, "Session Timed Out", locale);
         return;
       }
       User user = storageIo.getUser(userInfo.getUserId());
       String password = params.get("password");
       if (password == null || password.equals("")) {
-        fail(req, resp, bundle.getString("nopassword"));
+        fail(req, resp, bundle.getString("nopassword"), locale);
         return;
       }
       String hashedPassword;
       try {
         hashedPassword = PasswordHash.createHash(password);
       } catch (NoSuchAlgorithmException e) {
-        fail(req, resp, "System Error hashing password");
+        fail(req, resp, "System Error hashing password", locale);
         return;
       } catch (InvalidKeySpecException e) {
-        fail(req, resp, "System Error hashing password");
+        fail(req, resp, "System Error hashing password", locale);
         return;
       }
 
@@ -333,6 +340,8 @@ public class LoginServlet extends HttpServlet {
       String uri = new UriBuilder("/")
         .add("locale", locale)
         .add("repo", repo)
+        .add("autoload", autoload)
+        .add("ng", newGalleryId)
         .add("galleryId", galleryId).build();
       resp.sendRedirect(uri);   // Logged in, go to service
       return;
@@ -345,7 +354,7 @@ public class LoginServlet extends HttpServlet {
 
     String hash = user.getPassword();
     if ((hash == null) || hash.equals("")) {
-      fail(req, resp, "No Password Set for User");
+      fail(req, resp, "No Password Set for User", locale);
       return;
     }
 
@@ -356,7 +365,7 @@ public class LoginServlet extends HttpServlet {
     }
 
     if (!validLogin) {
-      fail(req, resp, bundle.getString("invalidpassword"));
+      fail(req, resp, bundle.getString("invalidpassword"), locale);
       return;
     }
 
@@ -381,7 +390,9 @@ public class LoginServlet extends HttpServlet {
     }
     uri = new UriBuilder(uri)
       .add("locale", locale)
+      .add("autoload", autoload)
       .add("repo", repo)
+      .add("ng", newGalleryId)
       .add("galleryId", galleryId).build();
     resp.sendRedirect(uri);
   }
@@ -429,8 +440,8 @@ public class LoginServlet extends HttpServlet {
     return sb.toString();
   }
 
-  private void fail(HttpServletRequest req, HttpServletResponse resp, String error) throws IOException {
-    resp.sendRedirect("/login/?error=" + sanitizer.sanitize(error));
+  private void fail(HttpServletRequest req, HttpServletResponse resp, String error, String locale) throws IOException {
+    resp.sendRedirect("/login/?locale=" + sanitizer.sanitize(locale) + "&error=" + sanitizer.sanitize(error));
     return;
   }
 

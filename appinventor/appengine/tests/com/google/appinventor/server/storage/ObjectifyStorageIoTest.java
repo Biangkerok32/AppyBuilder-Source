@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -18,6 +15,7 @@ import com.google.appinventor.shared.rpc.project.Project;
 import com.google.appinventor.shared.rpc.project.RawFile;
 import com.google.appinventor.shared.rpc.project.TextFile;
 import com.google.appinventor.shared.rpc.project.UserProject;
+import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjectNode;
 import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.storage.StorageUtil;
@@ -72,6 +70,13 @@ public class ObjectifyStorageIoTest extends LocalDatastoreTestCase {
   private static final byte[] APK_FILE_CONTENT = { (byte) 0, (byte) 1, (byte) 32, (byte) 255};
   private static final String BLOCK_FILE_NAME = "src/blocks.blk";
   private static final byte[] BLOCK_FILE_CONTENT = {(byte) 0, (byte) 1, (byte) 32, (byte) 255};
+
+  private static final String SCM_FILE_NAME1 = "src/File1.scm";
+  private static final String BKY_FILE_NAME1 = "src/File1.bky";
+  private static final String YAIL_FILE_NAME1 = "src/File1.yail";
+  private static final String SCM_FILE_NAME2 = "src/File2.scm";
+  private static final String BKY_FILE_NAME2 = "src/File2.bky";
+  private static final String YAIL_FILE_NAME2 = "src/File2.yail";
 
   private ObjectifyStorageIo storage;
   private Project project;
@@ -522,6 +527,55 @@ public class ObjectifyStorageIoTest extends LocalDatastoreTestCase {
     }
   }
 
+  public void testExportProjectZip() throws BlocksTruncatedException, IOException {
+    final String USER_ID = "1800";
+    final String USER_EMAIL = "newuser1800@test.com";
+    storage.getUser(USER_ID, USER_EMAIL);
+    long projectId = createProject(USER_ID, PROJECT_NAME, FAKE_PROJECT_TYPE, FORM_QUALIFIED_NAME);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, SCM_FILE_NAME1);
+    storage.uploadFile(projectId, SCM_FILE_NAME1, USER_ID, FILE_CONTENT1, StorageUtil.DEFAULT_CHARSET);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, BKY_FILE_NAME1);
+    storage.uploadFile(projectId, BKY_FILE_NAME1, USER_ID, FILE_CONTENT2, StorageUtil.DEFAULT_CHARSET);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, YAIL_FILE_NAME1);
+    storage.uploadFile(projectId, YAIL_FILE_NAME1, USER_ID, FILE_CONTENT1, StorageUtil.DEFAULT_CHARSET);
+
+    storage.addSourceFilesToProject(USER_ID, projectId, false, SCM_FILE_NAME2);
+    storage.uploadFile(projectId, SCM_FILE_NAME2, USER_ID, FILE_CONTENT1, StorageUtil.DEFAULT_CHARSET);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, BKY_FILE_NAME2);
+    storage.uploadFile(projectId, BKY_FILE_NAME2, USER_ID, FILE_CONTENT2, StorageUtil.DEFAULT_CHARSET);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, YAIL_FILE_NAME2);
+    storage.uploadFile(projectId, YAIL_FILE_NAME2, USER_ID, FILE_CONTENT1, StorageUtil.DEFAULT_CHARSET);
+    ProjectSourceZip zipFile = storage.exportProjectSourceZip(USER_ID, projectId, false,
+            /* includeAndroidKeystore */ true,
+            "project_" + projectId + ".aia", true, false, true, false);
+    assertEquals(7,zipFile.getFileCount());
+  }
+
+  public void testExportProjectZipNoSCM() throws BlocksTruncatedException, IOException {
+    final String USER_ID = "1900";
+    final String USER_EMAIL = "newuser1900@test.com";
+    storage.getUser(USER_ID, USER_EMAIL);
+    long projectId = createProject(USER_ID, PROJECT_NAME, FAKE_PROJECT_TYPE, FORM_QUALIFIED_NAME);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, SCM_FILE_NAME1);
+    storage.uploadFile(projectId, SCM_FILE_NAME1, USER_ID, FILE_CONTENT1, StorageUtil.DEFAULT_CHARSET);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, BKY_FILE_NAME1);
+    storage.uploadFile(projectId, BKY_FILE_NAME1, USER_ID, FILE_CONTENT2, StorageUtil.DEFAULT_CHARSET);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, YAIL_FILE_NAME1);
+    storage.uploadFile(projectId, YAIL_FILE_NAME1, USER_ID, FILE_CONTENT1, StorageUtil.DEFAULT_CHARSET);
+
+    storage.addSourceFilesToProject(USER_ID, projectId, false, BKY_FILE_NAME2);
+    storage.uploadFile(projectId, BKY_FILE_NAME2, USER_ID, FILE_CONTENT2, StorageUtil.DEFAULT_CHARSET);
+    storage.addSourceFilesToProject(USER_ID, projectId, false, YAIL_FILE_NAME2);
+    storage.uploadFile(projectId, YAIL_FILE_NAME2, USER_ID, FILE_CONTENT1, StorageUtil.DEFAULT_CHARSET);
+    List<String> sourcesFiles = storage.getProjectSourceFiles(USER_ID, projectId);
+    assertTrue(sourcesFiles.contains(YAIL_FILE_NAME2));
+    ProjectSourceZip zipFile = storage.exportProjectSourceZip(USER_ID, projectId, false,
+            /* includeAndroidKeystore */ true,
+            "project_" + projectId + ".aia", true, false, true, false);
+    assertEquals(4,zipFile.getFileCount());
+    sourcesFiles = storage.getProjectSourceFiles(USER_ID, projectId);
+    assertFalse(sourcesFiles.contains(YAIL_FILE_NAME2));
+  }
   /*
    * Fail on the Nth call to runJobWithRetries, where N is the value of the
    * failingRun argument to the constructor. Also allows counting

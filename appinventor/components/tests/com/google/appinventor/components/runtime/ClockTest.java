@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -51,7 +48,7 @@ public class ClockTest extends TestCase {
   }
 
   public void testMakeInstantFromMillis() throws Exception {
-    assertEquals("Jan 1, 1970 00:00:00 AM",
+    assertEquals("Jan 1, 1970 12:00:00 AM",
         Clock.FormatDateTime(Clock.MakeInstantFromMillis(0
                                       - TimeZone.getDefault().getRawOffset()),""));
   }
@@ -78,12 +75,12 @@ public class ClockTest extends TestCase {
   }
 
   public void testAddWeeks() throws Exception {
-    assertEquals("Sep 10, 2002 00:00:00 AM", Clock.FormatDateTime(
+    assertEquals("Sep 10, 2002 12:00:00 AM", Clock.FormatDateTime(
         Clock.AddWeeks(Clock.MakeInstant("9/11/2001 00:00:00"), 52), ""));
   }
 
   public void testAddWeeks2() throws Exception {
-    assertEquals("Sep 18, 2001 00:00:00 AM", Clock.FormatDateTime(
+    assertEquals("Sep 18, 2001 12:00:00 AM", Clock.FormatDateTime(
         Clock.AddWeeks(Clock.MakeInstant("9/11/2001 00:00:00"), 1), ""));
   }
 

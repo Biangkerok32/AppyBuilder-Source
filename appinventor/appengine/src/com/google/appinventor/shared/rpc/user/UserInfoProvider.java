@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -29,26 +26,6 @@ public interface UserInfoProvider {
   String getUserEmail();
 
   /**
-   * Returns the user's name.
-   *
-   * @return user email name
-   */
-  String getUserName();
-
-  /**
-   * Returns the user's link.
-   *
-   * @return user link
-   */
-  String getUserLink();
-
-  /**
-   * Returns the email notification frequency set by user
-   * @return emailFrequency email frequency
-   */
-  int getUserEmailFrequency();
-
-  /**
    * Returns the user object.
    *
    * @return user object
@@ -70,13 +47,6 @@ public interface UserInfoProvider {
    *         {@code false} otherwise
    */
   boolean getIsAdmin();
-
-  /**
-   * Returns which type the user has
-   *
-   * @return user type
-   */
-  int getType();
 
   String getSessionId();
 

@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
@@ -71,9 +68,7 @@ import java.net.URL;
     iconName = "images/mediastore.png")
 @SimpleObject
 @UsesPermissions(permissionNames = "android.permission.INTERNET")
-@UsesLibraries(libraries = "httpcore-4.3.2.jar," +
-                           "httpmime-4.3.4.jar")
-
+@UsesLibraries("httpmime.jar")
 public final class MediaStore extends AndroidNonvisibleComponent implements Component {
   protected final ComponentContainer componentContainer;
   private static final String LOG_TAG_COMPONENT = "MediaStore: ";

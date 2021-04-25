@@ -19,7 +19,7 @@ def auth_func():
 
 def main():
     if sys.modules.has_key('google'):
-         del sys.modules['google'] # This interferes with imports later
+      del sys.modules['google'] # This interferes with imports later
     getlibdir()
     from google.appengine.ext import db
     from google.appengine.ext.remote_api import remote_api_stub

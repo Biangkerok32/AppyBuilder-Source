@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -121,16 +118,14 @@ public class StorageUtil {
     if (filePath.endsWith(".png")) {
       return "image/png";
     }
-
-    if (filePath.endsWith(".svg")) {
-      return "image/svg+xml";
-    }
-
     if (filePath.endsWith(".bmp")) {
       return "image/bmp";
     }
     if (filePath.endsWith(".webp")) {
       return "image/webp";
+    }
+    if (filePath.endsWith(".svg")) {
+      return "image/svg+xml";
     }
 
     // Audio File Types
@@ -169,6 +164,9 @@ public class StorageUtil {
     }
 
     // Video File Types
+    if (filePath.endsWith(".avi")) {
+      return "video/avi";
+    }
     if (filePath.endsWith(".mp4")) {
       return "video/mp4";
     }
@@ -187,7 +185,7 @@ public class StorageUtil {
 
     // Other File Types
     if (filePath.endsWith(".apk")) {
-      return "application/vnd.android.package-archive; charset=utf-8";
+      return "application/vnd.android.package-archive";
     }
 
     if (filePath.endsWith(".aia")) {

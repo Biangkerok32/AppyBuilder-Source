@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -51,23 +48,19 @@ import java.util.Map;
   public enum ComponentCategory {
     // TODO(user): i18n category names
     USERINTERFACE("User Interface"),
-    SCREEN("Effects"),
     LAYOUT("Layout"),
     MEDIA("Media"),
     ANIMATION("Drawing and Animation"),
-  MAPS("Maps"),
+    MAPS("Maps"),
     SENSORS("Sensors"),
     SOCIAL("Social"),
     STORAGE("Storage"),
     CONNECTIVITY("Connectivity"),
     LEGOMINDSTORMS("LEGO\u00AE MINDSTORMS\u00AE"),
-  VISUALIZATION("Visualization"),
-  MONETIZE("Monetize"),
-  ADVANCED("Advanced"),
-  INTERNAL("For internal use only"),
-  EXPERIMENTAL("Experimental"),
-  EXTENSION("Extension"),
-  // UNINITIALIZED is used as a default value so Swing libraries can still compile
+    EXPERIMENTAL("Experimental"),
+    EXTENSION("Extension"),
+    INTERNAL("For internal use only"),
+    // UNINITIALIZED is used as a default value so Swing libraries can still compile
     UNINITIALIZED("Uninitialized");
 
 
@@ -76,7 +69,6 @@ import java.util.Map;
     private static final Map<String, String> DOC_MAP = new HashMap<String, String>();
     static {
       DOC_MAP.put("User Interface", "userinterface");
-        DOC_MAP.put("Effects", "effects");
       DOC_MAP.put("Layout", "layout");
       DOC_MAP.put("Media", "media");
       DOC_MAP.put("Drawing and Animation", "animation");
@@ -86,11 +78,7 @@ import java.util.Map;
       DOC_MAP.put("Storage", "storage");
       DOC_MAP.put("Connectivity", "connectivity");
       DOC_MAP.put("LEGO\u00AE MINDSTORMS\u00AE", "legomindstorms");
-    DOC_MAP.put("Other stuff", "other");
       DOC_MAP.put("Experimental", "experimental");
-      DOC_MAP.put("Not ready for prime time", "notready");
-      DOC_MAP.put("Advanced", "advanced");
-      DOC_MAP.put("Monetize", "monetize");
       DOC_MAP.put("Extension", "extension");
     }
 

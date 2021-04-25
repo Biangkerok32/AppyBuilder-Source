@@ -5,9 +5,10 @@
 
 package com.google.appinventor.client.editor.simple.components;
 
-import com.google.appinventor.components.common.ComponentConstants;
-
 import java.util.Map;
+
+import com.google.appinventor.client.editor.simple.components.MockMap.LatLng;
+import com.google.appinventor.components.common.ComponentConstants;
 
 final class MockMapLayout extends MockLayout {
   private static final String PROPERTY_NAME_LATITUDE = "Latitude";

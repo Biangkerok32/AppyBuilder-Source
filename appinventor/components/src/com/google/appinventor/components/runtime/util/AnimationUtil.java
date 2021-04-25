@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -14,7 +11,6 @@ import android.util.Log;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationSet;
-import android.view.animation.AnimationUtils;
 import android.view.animation.TranslateAnimation;
 
 /**
@@ -55,7 +51,7 @@ public final class AnimationUtil {
    * @param view  component to animate
    * @param animation  animation kind
    */
-  public static void ApplyAnimation(View view, String animation, Activity activity) {
+  public static void ApplyAnimation(View view, String animation) {
     // TODO(user): These string constants need to be extracted and defined somewhere else!
     // TODO(user): Also, the endless else-if is inefficient
     if (animation.equals("ScrollRightSlow")) {
@@ -72,11 +68,6 @@ public final class AnimationUtil {
       ApplyHorizontalScrollAnimation(view, true, 1000);
     } else if (animation.equals("Stop")) {
       view.clearAnimation();
-    } else if (animation.equalsIgnoreCase("HyperJump")) {
-      ApplyHorizontalScrollAnimation(view, true, 1000);
-      int id = activity.getResources().getIdentifier("hyperspace_jump", "anim", activity.getPackageName());
-      Animation hyperspaceJumpAnimation = AnimationUtils.loadAnimation(activity, id);
-      view.startAnimation(hyperspaceJumpAnimation);
     }
   }
 

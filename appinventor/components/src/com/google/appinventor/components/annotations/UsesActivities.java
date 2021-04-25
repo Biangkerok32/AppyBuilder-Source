@@ -23,11 +23,11 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface UsesActivities {
 
-    /**
+  /**
    * An array containing each {@link ActivityElement}
    * that is required by the component.
    *
    * @return  the array containing the relevant activities
    */
-    ActivityElement[] activities();
+  ActivityElement[] activities();
 }

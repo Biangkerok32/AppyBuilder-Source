@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -13,6 +10,7 @@ import com.google.appinventor.client.Ode;
 import static com.google.appinventor.client.Ode.MESSAGES;
 import com.google.appinventor.client.OdeAsyncCallback;
 import com.google.appinventor.client.settings.project.ProjectSettings;
+import com.google.appinventor.client.tracking.Tracking;
 import com.google.appinventor.shared.rpc.project.ProjectNode;
 import com.google.appinventor.shared.rpc.project.ProjectRootNode;
 import com.google.appinventor.shared.rpc.project.UserProject;
@@ -56,7 +54,6 @@ public final class Project {
   public void loadProjectNodes() {
     if (projectRoot == null && !loadingInProgress) {
       loadingInProgress = true;
-      Ode.CLog("Project.loadProjectNodes(): loadingInProgress = true");
 
       if (settings == null) {
         settings = new ProjectSettings(Project.this);
@@ -72,7 +69,6 @@ public final class Project {
             public void onSuccess(ProjectRootNode result) {
               projectRoot = result;
 
-              Ode.CLog("Project.loadProjectNodes(): loadingInProgress = false");
               loadingInProgress = false;
               fireProjectLoaded();
             }
@@ -93,15 +89,6 @@ public final class Project {
    */
   public long getProjectId() {
     return projectInfo.getProjectId();
-  }
-
-  /**
-   * Returns the id of this project's attribution.
-   *
-   * @return  attribution id
-   */
-  public long getAttributionId() {
-    return projectInfo.getAttributionId();
   }
 
   /**
@@ -146,23 +133,6 @@ public final class Project {
    */
   public void setDateModified(long date) {
     projectInfo.setDateModified(date);
-  }
-
-  public boolean isPublished() {
-    if (projectInfo.getGalleryId() <= UserProject.NOTPUBLISHED) {
-      /* The current unpublished project has galleryId == 0, but some old
-       * unpublished projects in database may still have -1 as unpublished value.
-       * Therefore, we use <= 0 to make sure this check.*/
-      return false;
-    }
-    return true;
-  }
-  public long getGalleryId() {
-    return projectInfo.getGalleryId();
-  }
-
-  public void setGalleryId(long id) {
-    projectInfo.setGalleryId(id);
   }
 
   /**
@@ -216,29 +186,6 @@ public final class Project {
   }
 
   /**
-   * Adds the given node to the project.
-   *
-   * <p/>If a node with the same file id already exists, the node is not added
-   * and the existing node is returned. However, the 'project node added' event
-   * is still fired.
-   *
-   * @param parent  parent node of node to be added
-   * @param node  node to be added
-   * @return the node that was added, or the existing node with the same file id
-   */
-  public ProjectNode copyNode(ProjectNode parent, String oldFileId, String fildId) {
-    for (ProjectNode child : parent.getChildren()) {
-      if (child.getFileId().equals(oldFileId)) {
-        ProjectNode copyChild = child;
-        copyChild.setName(fildId);
-        parent.addChild(copyChild);
-        fireProjectNodeAdded(copyChild);
-        return copyChild;
-      }
-    }
-    return null;
-  }
-  /**
    * Deletes the given node from the project.
    *
    * @param node  node to be deleted
@@ -249,6 +196,57 @@ public final class Project {
       parent.removeChild(node);
     }
     fireProjectNodeRemoved(node);
+  }
+
+  public void moveToTrash() {
+    Tracking.trackEvent(Tracking.PROJECT_EVENT,
+        Tracking.PROJECT_ACTION_MOVE_TO_TRASH_PROJECT_YA, getProjectName());
+    Ode.getInstance().getProjectService().moveToTrash(getProjectId(),
+        new OdeAsyncCallback<UserProject>(
+            // failure message
+            MESSAGES.moveToTrashProjectError()) {
+          @Override
+          public void onSuccess(UserProject project) {
+            if (project.getProjectId() == projectInfo.getProjectId()) {
+              projectInfo.moveToTrash();
+              Ode.getInstance().getProjectManager().trashProject(getProjectId());
+            }
+          }
+        });
+  }
+
+
+  public void restoreFromTrash() {
+    Tracking.trackEvent(Tracking.PROJECT_EVENT,
+            Tracking.PROJECT_ACTION_RESTORE_PROJECT_YA, getProjectName());
+    Ode.getInstance().getProjectService().restoreProject(getProjectId(),
+            new OdeAsyncCallback<UserProject>(
+                    // failure message
+                    MESSAGES.restoreProjectError()) {
+              @Override
+              public void onSuccess(UserProject project) {
+                if (project.getProjectId() == projectInfo.getProjectId()) {
+                  projectInfo.restoreFromTrash();
+                  Ode.getInstance().getProjectManager().restoreTrashProject(getProjectId());
+                }
+              }
+            });
+  }
+
+  public void deleteFromTrash() {
+    Tracking.trackEvent(Tracking.PROJECT_EVENT,
+        Tracking.PROJECT_ACTION_DELETE_PROJECT_YA, getProjectName());
+    final OdeAsyncCallback<Void> deleteCallback = new OdeAsyncCallback<Void>() {
+      @Override
+      public void onSuccess(Void result) {
+        Ode.getInstance().getProjectManager().removeDeletedProject(getProjectId());
+      }
+    };
+    Ode.getInstance().getProjectService().deleteProject(getProjectId(), deleteCallback);
+  }
+
+  public boolean isInTrash() {
+    return projectInfo.isInTrash();
   }
 
   /**

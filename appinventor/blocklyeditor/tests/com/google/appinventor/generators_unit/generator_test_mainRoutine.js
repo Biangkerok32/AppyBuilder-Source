@@ -1,4 +1,4 @@
-// Copyright 2011-2013 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -14,9 +14,12 @@
 
 exports.execute =  function (){
 
+  var fs = require('fs');
+  var messages = fs.read('../build/blocklyeditor/msg/messages.json');
+
   // Open the actual page and load all the JavaScript in it
   // if success is true, all went well
-  page.open('blocklyeditor/src/demos/yail/yail_testing_index.html', function(status) {
+  page.open('src/demos/yail/yail_testing_index.html', function(status) {
     if (status !== 'success') {
       console.log('load of yail_testing_index.html unsuccessful');
       phantom.exit();
@@ -32,6 +35,7 @@ exports.execute =  function (){
           // if dropdownOp is false, we test the simple block
           // otherwise set the block dropdown for the code generator to use
           var dropdownOp = arguments[4];
+          Blockly.Msg = JSON.parse(arguments[5]);
 
           var generatedYail = "";
           var yailForBlock;
@@ -56,7 +60,8 @@ exports.execute =  function (){
         delayedGenerator,
         blockName,
         doesReturn,
-        dropdownOp);
+        dropdownOp,
+        messages);
 
     //This is the actual result of the test
     console.log(passed);

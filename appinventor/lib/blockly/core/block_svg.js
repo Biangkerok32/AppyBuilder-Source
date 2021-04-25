@@ -665,8 +665,10 @@ Blockly.BlockSvg.prototype.onMouseDown_ = function(e) {
       var icons = descendant.getIcons();
       for (var j = 0; j < icons.length; j++) {
         var data = icons[j].getIconLocation();
-        data.bubble = icons[j];
-        this.draggedBubbles_.push(data);
+        if (data) {  // icons for collapsed blocks may not have locations
+          data.bubble = icons[j];
+          this.draggedBubbles_.push(data);
+        }
       }
     }
   }
@@ -690,6 +692,7 @@ Blockly.BlockSvg.prototype.onMouseUp_ = function(e) {
         new Blockly.Events.Ui(this, 'click', undefined, undefined));
   }
   Blockly.terminateDrag_();
+  var oldXY = this.dragStartXY_;
 
   var deleteArea = this.workspace.isDeleteArea(e);
 
@@ -719,6 +722,11 @@ Blockly.BlockSvg.prototype.onMouseUp_ = function(e) {
       }
       if (confirmedDelete) {
 	Blockly.selected.dispose(false, true);
+      } else {
+        //Move block back to original position if trash is canceled
+        var group = Blockly.selected.getSvgRoot();
+        group.translate_ = 'translate(' + oldXY.x + ',' + oldXY.y + ')';
+        group.setAttribute('transform', group.translate_ + group.skew_);
       }
     });
   }
@@ -866,10 +874,14 @@ Blockly.BlockSvg.prototype.showContextMenu_ = function(e) {
       text: descendantCount == 1 ? Blockly.Msg.DELETE_BLOCK :
           Blockly.Msg.DELETE_X_BLOCKS.replace('%1', String(descendantCount)),
       enabled: true,
-      callback: function() {
-        Blockly.Events.setGroup(true);
-        block.dispose(true, true);
-        Blockly.Events.setGroup(false);
+      callback: function () {
+        Blockly.confirmDeletion(function (confirmedDelete) {
+          if (confirmedDelete) {
+            Blockly.Events.setGroup(true);
+            block.dispose(true, true);
+            Blockly.Events.setGroup(false);
+          }
+        });
       }
     };
     menuOptions.push(deleteOption);
@@ -887,6 +899,10 @@ Blockly.BlockSvg.prototype.showContextMenu_ = function(e) {
   // Allow the block to add or modify menuOptions.
   if (this.customContextMenu && !block.isInFlyout) {
     this.customContextMenu(menuOptions);
+  }
+
+  if (this.flyoutCustomContextMenu && block.isInFlyout) {
+    this.flyoutCustomContextMenu(menuOptions);
   }
 
   Blockly.ContextMenu.show(e, menuOptions, this.RTL);

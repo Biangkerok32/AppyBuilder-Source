@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -9,9 +6,10 @@
 
 package com.google.appinventor.client.widgets.properties;
 
-import com.google.appinventor.client.widgets.DropDownButton;
+import static com.google.appinventor.client.Ode.MESSAGES;
 import static com.google.appinventor.client.widgets.DropDownButton.DropDownItem;
 
+import com.google.appinventor.client.widgets.DropDownButton;
 import com.google.common.collect.Lists;
 import com.google.gwt.user.client.Command;
 
@@ -91,7 +89,9 @@ public class ChoicePropertyEditor extends PropertyEditor {
       items.add(new DropDownItem("Choice Property Editor", choice.caption, new Command() {
         @Override
         public void execute() {
-          property.setValue(choice.value);
+          boolean multiple = isMultipleValues();
+          setMultipleValues(false);
+          property.setValue(choice.value, multiple);
         }
       }));
     }
@@ -117,7 +117,9 @@ public class ChoicePropertyEditor extends PropertyEditor {
       items.add(new DropDownItem("Choice Property Editor", choice.caption, new Command() {
         @Override
         public void execute() {
-          property.setValue(choice.value);
+          boolean multiple = isMultipleValues();
+          setMultipleValues(false);
+          property.setValue(choice.value, multiple);
         }
       }));
     }
@@ -126,8 +128,14 @@ public class ChoicePropertyEditor extends PropertyEditor {
 
     initWidget(dropDownButton);
   }
+
   @Override
   protected void updateValue() {
+    if (isMultipleValues()) {
+      dropDownButton.setCaption(MESSAGES.multipleValues());
+      return;
+    }
+
     String propertyValue = property.getValue();
     for (Choice choice : choices) {
       String choiceValue = choice.value;
@@ -136,7 +144,7 @@ public class ChoicePropertyEditor extends PropertyEditor {
       }
     }
   }
-  
+
   /**
    * Enables the dropdown selector for this property
    */

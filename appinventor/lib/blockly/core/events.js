@@ -110,7 +110,7 @@ Blockly.Events.fire = function(event) {
     // First event added; schedule a firing of the event queue.
     Blockly.Events.FIRE_TIMER_ = setTimeout(function() {
       Blockly.Events.FIRE_TIMER_ = undefined;
-        Blockly.Events.fireNow_();
+      Blockly.Events.fireNow_();
     });
   }
 };
@@ -597,6 +597,8 @@ Blockly.Events.Change.prototype.run = function(forward) {
         value = value || '<mutation></mutation>';
         var dom = Blockly.Xml.textToDom('<xml>' + value + '</xml>');
         block.domToMutation(dom.firstChild);
+        block.initSvg();
+        block.render();
       }
       Blockly.Events.fire(new Blockly.Events.Change(
           block, 'mutation', null, oldMutation, value));

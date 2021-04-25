@@ -33,9 +33,14 @@ public class Config implements IsSerializable, Serializable {
   private String guideUrl;
   private String referenceComponentsUrl;
   private String firebaseURL;   // Default Firebase URL
-  // private String privateFfirebaseURL;   // private Firebase URL
   private String defaultCloudDBserver;
   private int noop;            // No-op interval
+  private boolean secondBuildserver; // Whether or not we have a second
+                                     // buildserver (used for a different
+                                     // target SDK).
+  private boolean galleryEnabled;
+  private String galleryLocation;
+  private boolean galleryReadOnly;
 
   public Config() {
   }
@@ -168,14 +173,6 @@ public class Config implements IsSerializable, Serializable {
     firebaseURL = url;
   }
 
-//  public String getPrivateFfirebaseURL() {
-//    return privateFfirebaseURL;
-//  }
-//
-//  public void setPrivateFfirebaseURL(String privateFfirebaseURL) {
-//    this.privateFfirebaseURL = privateFfirebaseURL;
-//  }
-
   public void setDefaultCloudDBserver(String server) {
     defaultCloudDBserver = server;
   }
@@ -190,6 +187,38 @@ public class Config implements IsSerializable, Serializable {
 
   public void setNoop(int noop) {
     this.noop = noop;
+  }
+
+  public boolean getSecondBuildserver() {
+    return secondBuildserver;
+  }
+
+  public void setSecondBuildserver(boolean value) {
+    secondBuildserver = value;
+  }
+
+  public boolean getGalleryEnabled() {
+    return galleryEnabled;
+  }
+
+  public void setGalleryEnabled(boolean value) {
+    galleryEnabled = value;
+  }
+
+  public String getGalleryLocation() {
+    return galleryLocation;
+  }
+
+  public void setGalleryLocation(String value) {
+    galleryLocation = value;
+  }
+
+  public boolean getGalleryReadOnly() {
+    return galleryReadOnly;
+  }
+
+  public void setGalleryReadOnly(boolean value) {
+    galleryReadOnly = value;
   }
 
 }

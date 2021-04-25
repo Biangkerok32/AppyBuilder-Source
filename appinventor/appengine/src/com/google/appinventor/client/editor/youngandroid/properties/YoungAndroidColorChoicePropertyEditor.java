@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -22,10 +19,8 @@ public final class YoungAndroidColorChoicePropertyEditor extends ColorChoiceProp
   private static final Color[] YA_COLORS = {
     new Color(MESSAGES.noneColor(), Color.ALPHA_TRANSPARENT, "FFFFFF"),
     new Color(MESSAGES.blackColor(), Color.ALPHA_OPAQUE, "000000"),
-    new Color(MESSAGES.blueColor(), Color.ALPHA_OPAQUE, "66A3FF"),
-    new Color(MESSAGES.indigoColor(), Color.ALPHA_OPAQUE, "3F51B5"),
+    new Color(MESSAGES.blueColor(), Color.ALPHA_OPAQUE, "0000FF"),
     new Color(MESSAGES.cyanColor(), Color.ALPHA_OPAQUE, "00FFFF"),
-    new Color(MESSAGES.cyanDarkColor(), Color.ALPHA_OPAQUE, "00C6C6"),
     new Color(MESSAGES.defaultColor(), Color.ALPHA_TRANSPARENT, "000000"),
     new Color(MESSAGES.darkGrayColor(), Color.ALPHA_OPAQUE, "444444"),
     new Color(MESSAGES.grayColor(), Color.ALPHA_OPAQUE, "888888"),
@@ -44,7 +39,7 @@ public final class YoungAndroidColorChoicePropertyEditor extends ColorChoiceProp
     new Color(MESSAGES.noneColor(), Color.ALPHA_TRANSPARENT, "FFFFFF"),
     new Color(MESSAGES.redColor(), Color.ALPHA_OPAQUE, "FF0000"),
     new Color(MESSAGES.greenColor(), Color.ALPHA_OPAQUE, "00FF00"),
-    new Color(MESSAGES.blueColor(), Color.ALPHA_OPAQUE, "66A3FF")
+    new Color(MESSAGES.blueColor(), Color.ALPHA_OPAQUE, "0000FF")
   };
 
   /**

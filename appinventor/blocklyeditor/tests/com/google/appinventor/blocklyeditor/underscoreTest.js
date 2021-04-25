@@ -1,13 +1,19 @@
+// -*- mode: javascript; js-indent-level: 2; -*-
+// Copyright © 2013-2017 Massachusetts Institute of Technology, All rights reserved.
+// Released under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 var fs = require('fs'); //Always required to read from files
 var path = fs.absolute('.');
 var system = require('system');
 var args = system.args;
 
 //Read files from filesystem
-var expected = fs.read(path + '/blocklyeditor/tests/com/google/appinventor/blocklyeditor/data/underscore/underscoreExpected.yail');
-var formJson = fs.read(path + '/blocklyeditor/tests/com/google/appinventor/blocklyeditor/data/underscore/Screen1.scm');
+var expected = fs.read(path + '/tests/com/google/appinventor/blocklyeditor/data/underscore/underscoreExpected.yail');
+var formJson = fs.read(path + '/tests/com/google/appinventor/blocklyeditor/data/underscore/Screen1.scm');
 formJson = formJson.substring(9, formJson.length-2); // Cut off Leading $JSON
-var blocks = fs.read(path + '/blocklyeditor/tests/com/google/appinventor/blocklyeditor/data/underscore/Screen1.bky');
+var blocks = fs.read(path + '/tests/com/google/appinventor/blocklyeditor/data/underscore/Screen1.bky');
+var messages = fs.read('../build/blocklyeditor/msg/messages.json');
 
 // PhantomJS page object to open and load an URL
 var page = require('webpage').create();
@@ -23,7 +29,7 @@ page.onError = function (msg, trace) {
 // Open the actual page and load all the JavaScript in it
 // If success is true, all went well
 debugger;
-page.open('blocklyeditor/src/demos/yail/yail_testing_index.html', function(status) {
+page.open('src/demos/yail/yail_testing_index.html', function(status) {
     // The evaluate function has arguments passed after the callback
     // We are passing in the .bky, .scm, and expected .yail
 
@@ -33,6 +39,9 @@ page.open('blocklyeditor/src/demos/yail/yail_testing_index.html', function(statu
 
     // Evaluate the following:
     var passed = page.evaluate(function(){
+
+        // Set the translation messages object
+        Blockly.Msg = JSON.parse(arguments[5]);
 
         // Get the expected Yail from Classic
         var expected = arguments[0];
@@ -47,7 +56,7 @@ page.open('blocklyeditor/src/demos/yail/yail_testing_index.html', function(statu
         return doTheyMatch(expected, newblocks);
 
 
-    }, expected, formJson, blocks, args[1], args[2]); // args[1] and args[2] are blocks Version and YaV
+    }, expected, formJson, blocks, args[1], args[2], messages); // args[1] and args[2] are blocks Version and YaV
 
     //This is the actual result of the test
     console.log(passed);

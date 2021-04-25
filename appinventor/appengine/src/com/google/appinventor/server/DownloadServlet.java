@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -23,6 +20,8 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
@@ -45,7 +44,7 @@ public class DownloadServlet extends OdeServlet {
   // Constants for accessing split URI
   /*
    * Download kind can be: "project-output", "project-source",
-   * "all-projects-source", "file", or "userfile".
+   * "selected-projects-source", "all-projects-source", "file", or "userfile".
    * Constants for these are defined in ServerLayout.
    */
   private static final int DOWNLOAD_KIND_INDEX = 3;
@@ -64,11 +63,6 @@ public class DownloadServlet extends OdeServlet {
   private static final int PROJECT_TITLE_INDEX = 5;
   private static final int SPLIT_LIMIT_PROJECT_SOURCE = 6;
 
-  // Constants used when download kind is "project-source-screen".
-  // Since the project title may contain slashes, it must be the last component in the URI.
-  private static final int PROJECT_TITLE_INDEX_SCREEN = 5;
-  private static final int SCREEN_TITLE_INDEX = 6;
-  private static final int SPLIT_LIMIT_PROJECT_SOURCE_SCREEN = 7;
   // Constants used when download kind is "user-project-source".
   private static final int USER_PROJECT_USERID_INDEX = 5;
   private static final int SPLIT_LIMIT_USER_PROJECT_SOURCE = 6;
@@ -134,27 +128,12 @@ public class DownloadServlet extends OdeServlet {
         // project in the export
         boolean includeYail = userInfoProvider.getIsAdmin();
         boolean includeScreenShots = includeYail;
+        StorageIoInstanceHolder.getInstance().assertUserHasProject(userId, projectId);
         ProjectSourceZip zipFile = fileExporter.exportProjectSourceZip(userId,
           projectId, includeProjectHistory, false, zipName, includeYail,
           includeScreenShots, false, false);
         downloadableFile = zipFile.getRawFile();
-      } else if (downloadKind.equals(ServerLayout.DOWNLOAD_PROJECT_SOURCE_SCREEN)) {
-        // Download project source screen files as a zip.
-        long projectId = Long.parseLong(uriComponents[PROJECT_ID_INDEX]);
-        uriComponents = uri.split("/", SPLIT_LIMIT_PROJECT_SOURCE_SCREEN);
-        String projectTitle = (uriComponents.length > PROJECT_TITLE_INDEX_SCREEN) ?
-                uriComponents[PROJECT_TITLE_INDEX_SCREEN] : null;
-        String screenTitle = (uriComponents.length > SCREEN_TITLE_INDEX) ?
-                uriComponents[SCREEN_TITLE_INDEX] : null;
-        final boolean includeProjectHistory = true;
-        String zipName_projectTitle = (projectTitle == null) ? null :
-                StringUtils.normalizeForFilename(projectTitle);
-        String zipName_screenTitle = (screenTitle == null) ? null :
-                StringUtils.normalizeForFilename(screenTitle);
-        String zipName = zipName_projectTitle + "_" + zipName_screenTitle  + ".scr";
-        ProjectSourceZip zipFile = fileExporter.exportProjectSourceScreenZip(userId,
-                projectId, zipName);
-        downloadableFile = zipFile.getRawFile();
+
       } else if (downloadKind.equals(ServerLayout.DOWNLOAD_USER_PROJECT_SOURCE)) {
         if (!userInfoProvider.getIsAdmin()) {
           throw new IllegalArgumentException("Unauthorized.");
@@ -165,7 +144,7 @@ public class DownloadServlet extends OdeServlet {
 
         String userIdOrEmail = uriComponents[USER_PROJECT_USERID_INDEX];
         String projectUserId;
-        StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+        StorageIo storageIo = StorageIoInstanceHolder.getInstance();
         if (userIdOrEmail.contains("@")) {
           // email address
           try {
@@ -187,14 +166,14 @@ public class DownloadServlet extends OdeServlet {
           projectName = storageIo.getProjectName(projectUserId, projectId);
         } catch (NumberFormatException e) {
           // assume we got a name instead
-          for (Long pid: storageIo.getProjects(projectUserId)) {
+          for (Long pid : storageIo.getProjects(projectUserId)) {
             if (storageIo.getProjectName(projectUserId, pid).equals(projectIdOrName)) {
               projectId = pid;
             }
           }
           if (projectId == 0) {
             // didn't find project by name
-            throw new IllegalArgumentException("Can't find a project named " 
+            throw new IllegalArgumentException("Can't find a project named "
                 + projectIdOrName + " for user id " + projectUserId);
           } else {
             projectName = projectIdOrName;
@@ -209,7 +188,15 @@ public class DownloadServlet extends OdeServlet {
         ProjectSourceZip zipFile = fileExporter.exportProjectSourceZip(projectUserId,
           projectId, /* include history*/ true, /* include keystore */ true, zipName, true, true, false, false);
         downloadableFile = zipFile.getRawFile();
-
+      } else if (downloadKind.equals(ServerLayout.DOWNLOAD_SELECTED_PROJECTS_SOURCE)) {
+        String[] projectIdStrings = uriComponents[PROJECT_ID_INDEX].split("-");
+        List<Long> projectIds = new ArrayList<Long>();
+        for (String projectId : projectIdStrings) {
+          projectIds.add(Long.valueOf(projectId));
+        }
+        ProjectSourceZip zipFile = fileExporter.exportSelectedProjectsSourceZip(
+          userId, "selected-projects.zip", projectIds);
+        downloadableFile = zipFile.getRawFile();
       } else if (downloadKind.equals(ServerLayout.DOWNLOAD_ALL_PROJECTS_SOURCE)) {
         // Download all project source files as a zip of zips.
         ProjectSourceZip zipFile = fileExporter.exportAllProjectsSourceZip(
@@ -239,6 +226,17 @@ public class DownloadServlet extends OdeServlet {
       }
     } catch (IllegalArgumentException e) {
       throw CrashReport.createAndLogError(LOG, req, "user=" + userId, e);
+    } catch (SecurityException e) {
+      // Not having appropriate permission is akin to not being able to find the project anyway,
+      // so we use 404 here to not leak that the project may exist.
+      final String message = "404 Not Found";
+      resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+      resp.setContentType("text/plain");
+      resp.setContentLength(message.length());
+      ServletOutputStream out = resp.getOutputStream();
+      out.write(message.getBytes());
+      out.close();
+      return;
     }
 
     String fileName = downloadableFile.getFileName();
@@ -246,7 +244,9 @@ public class DownloadServlet extends OdeServlet {
 
     // Set http response information
     resp.setStatus(HttpServletResponse.SC_OK);
-    resp.setHeader("content-disposition", "attachment; filename=\"" + fileName + "\"");
+    resp.setHeader(
+        "content-disposition",
+        req.getParameter("inline") != null ? "inline" : "attachment" + "; filename=\"" + fileName + "\"");
     resp.setContentType(StorageUtil.getContentTypeForFilePath(fileName));
     resp.setContentLength(content.length);
 

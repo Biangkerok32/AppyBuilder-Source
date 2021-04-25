@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -99,9 +96,8 @@ public class StoredData {
     // The specially formatted project history
     String history;
 
-    long galleryId;  // this is the galleryId of this project (if published)
-    long attributionId;  // if this project was initiated from the gallery, this is
-       // the id of the gallery app that was copied for remix
+    //adding a boolean variable to mark deleted project
+    boolean projectMovedToTrashFlag;
   }
 
   // Project properties specific to the user
@@ -291,6 +287,18 @@ public class StoredData {
     @Id public String id;              // "Secret" URL part
     @Indexed public Date timestamp; // So we know when to expire this objects
     public String email;            // Email of account in question
+  }
+
+  // A Shared backpack. Shared backpacks are not associated with
+  // any one user. Instead they are stored independent of projects
+  // and users. At login time a shared backpack may be specified.
+  // This requires an SSO Login from an external system to provide
+  // it.
+  @Cached(expirationSeconds=120)
+  @Unindexed
+  public static final class Backpack {
+    @Id public String id;
+    public String content;
   }
 
 }

@@ -77,7 +77,7 @@ goog.ui.PopupBase.Type = {
 
 /**
  * The popup dom element that this Popup wraps.
- * @type {Element}
+ * @type {?Element}
  * @private
  */
 goog.ui.PopupBase.prototype.element_ = null;
@@ -94,7 +94,7 @@ goog.ui.PopupBase.prototype.autoHide_ = true;
 
 /**
  * Mouse events without auto hide partner elements will not dismiss the popup.
- * @type {Array<Element>}
+ * @type {?Array<?Element>}
  * @private
  */
 goog.ui.PopupBase.prototype.autoHidePartners_ = null;
@@ -105,7 +105,7 @@ goog.ui.PopupBase.prototype.autoHidePartners_ = null;
  * hide if autoHide_ is true. If this is null, then the entire document is used.
  * For example, you can use a body-size div so that clicks on the browser
  * scrollbar do not dismiss the popup.
- * @type {Element}
+ * @type {?Element}
  * @private
  */
 goog.ui.PopupBase.prototype.autoHideRegion_ = null;
@@ -438,7 +438,7 @@ goog.ui.PopupBase.prototype.getHandler = function() {
  */
 goog.ui.PopupBase.prototype.ensureNotVisible_ = function() {
   if (this.isVisible_) {
-    throw Error('Can not change this state of the popup while showing.');
+    throw new Error('Can not change this state of the popup while showing.');
   }
 };
 
@@ -522,7 +522,8 @@ goog.ui.PopupBase.prototype.show_ = function() {
 
   // Allow callers to set the element in the BEFORE_SHOW event.
   if (!this.element_) {
-    throw Error('Caller must call setElement before trying to show the popup');
+    throw new Error(
+        'Caller must call setElement before trying to show the popup');
   }
 
   // Call reposition after onBeforeShow, as it may change the style and/or
@@ -555,7 +556,7 @@ goog.ui.PopupBase.prototype.show_ = function() {
       // The active element in the top-level document will remain the iframe
       // itself.
       var activeElement;
-      /** @preserveTry */
+
       try {
         activeElement = doc.activeElement;
       } catch (e) {
@@ -565,7 +566,7 @@ goog.ui.PopupBase.prototype.show_ = function() {
       }
       while (activeElement &&
              activeElement.nodeName == goog.dom.TagName.IFRAME) {
-        /** @preserveTry */
+
         try {
           var tempDoc = goog.dom.getFrameContentDocument(activeElement);
         } catch (e) {
