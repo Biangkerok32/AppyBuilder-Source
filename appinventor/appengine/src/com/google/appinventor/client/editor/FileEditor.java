@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -125,6 +122,17 @@ public abstract class FileEditor extends Composite {
   }
 
   /**
+   * Returns true if the current editor is shown, that is, only if the designer
+   * view is visible and this editor is the current file editor.
+   * @return true if the editor is shown, otherwise false.
+   */
+  @SuppressWarnings("unused")  // called from JSNI
+  public boolean isActiveEditor() {
+    return Ode.getInstance().getCurrentView() == 0 &&
+        Ode.getInstance().getCurrentFileEditor() == this;
+  }
+
+  /**
    * Called when the FileEditor is about to be closed. Subclasses can override this
    * to remove themselves as listeners.
    */
@@ -136,7 +144,7 @@ public abstract class FileEditor extends Composite {
    * but the YaBlocksEditor overrides this version with one that start the
    * Repl going.
    */
-  public void startRepl(boolean alreadyRunning, boolean forEmulator, boolean forUsb) {
+  public void startRepl(boolean alreadyRunning, boolean forChromebook, boolean forEmulator, boolean forUsb) {
   }
 
   /**
@@ -177,4 +185,10 @@ public abstract class FileEditor extends Composite {
   public void makeActiveWorkspace() {
   }
 
+  /**
+   * YaBlockEditor will use Blockly.hideChaff to close tooltips, context menus etc.
+   */
+  public void hideChaff() {
+
+  }
 }

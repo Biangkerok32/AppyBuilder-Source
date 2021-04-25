@@ -1,31 +1,44 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2014 MIT, All rights reserved
+// Copyright 2011-2018 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime;
 
 import android.content.Intent;
+
 import android.net.Uri;
 
-import android.support.v4.content.FileProvider;
-
 import android.webkit.MimeTypeMap;
-import com.google.appinventor.components.annotations.*;
+
+import com.google.appinventor.components.annotations.DesignerComponent;
+import com.google.appinventor.components.annotations.SimpleFunction;
+import com.google.appinventor.components.annotations.SimpleObject;
+import com.google.appinventor.components.annotations.UsesPermissions;
+
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.YaVersion;
+
 import com.google.appinventor.components.runtime.util.ErrorMessages;
+import com.google.appinventor.components.runtime.util.NougatUtil;
 
 import java.io.File;
 
-
 /**
- * Component for sharing files and/or messages through Android's built-in sharing
- * functionality.
+ * Sharing is a non-visible component that enables sharing files and/or messages between your app
+ * and other apps installed on a device. The component will display a list of the installed apps
+ * that can handle the information provided, and will allow the user to choose one to share the
+ * content with, for instance a mail app, a social network app, a texting app, and so on.
+ *
+ * The file path can be taken directly from other components such as the
+ * [`Camera`](media.html#Camera) or the [`ImagePicker`](media.html#ImagePicker), but can also be
+ * specified directly to read from storage. Be aware that different devices treat storage
+ * differently, so a few things to try if, for instance, you have a file called `arrow.gif` in the
+ * folder `Appinventor/assets`, would be:
+ *
+ * - `"file:///sdcard/Appinventor/assets/arrow.gif"`; or
+ * - `"/storage/Appinventor/assets/arrow.gif"`
  *
  * @author victsou@gmail.com (Victor Silva) - Picked up on @cfromknecht's work
  * and fixed file support.
@@ -49,49 +62,13 @@ import java.io.File;
 @UsesPermissions(permissionNames = "android.permission.READ_EXTERNAL_STORAGE")
 public class Sharing extends AndroidNonvisibleComponent {
 
-  private String subject="";
-  private String chooserTitle="";
-  //  private YailList fileNames = new YailList();
-  private String attachment="";
-  private String toAddress="";
-  private String ccAddress="";
-
   public Sharing(ComponentContainer container) {
     super(container.$form());
   }
 
-  @SimpleProperty(description = "Subject to be shared")
-  public void Subject(String subject) {
-    this.subject = subject.trim();
-  }
-
-  @SimpleProperty
-  public String Subject() {
-    return this.subject;
-  }
-
-  @SimpleProperty(description = "Use this to pre-fill the send-to address. Separate email addresses using comma")
-  public void EmailTo(String toAddress) {
-    this.toAddress = toAddress.trim();
-  }
-
-  @SimpleProperty
-  public String EmailTo() {
-    return this.toAddress;
-  }
-
-  @SimpleProperty(description = "Use this to prefill the CC address. Separate email addresses using comma")
-  public void EmailCC(String ccAddress) {
-    this.ccAddress = ccAddress.trim();
-  }
-
-  @SimpleProperty
-  public String EmailCC() {
-    return this.ccAddress;
-  }
-
   /**
    * Shares a message using Android' built-in sharing.
+   * @suppressdoc
    */
   @SimpleFunction(description = "Shares a message through any capable " +
       "application installed on the phone by displaying a list of the available apps and " +
@@ -100,19 +77,6 @@ public class Sharing extends AndroidNonvisibleComponent {
   public void ShareMessage(String message) {
     Intent shareIntent = new Intent(Intent.ACTION_SEND);
     shareIntent.putExtra(Intent.EXTRA_TEXT, message);
-        if (!Subject().equals("")) {
-            shareIntent.putExtra(Intent.EXTRA_SUBJECT, Subject());
-        }
-
-        if (!EmailTo().equals("")) {
-            // for TO field, need to include in String array, otherwise won't work
-            shareIntent.putExtra(Intent.EXTRA_EMAIL, new String[] {EmailTo()});
-
-        }
-        if (!EmailCC().equals("")) {
-            shareIntent.putExtra(Intent.EXTRA_CC, new String[] {EmailCC()});
-        }
-
     shareIntent.setType("text/plain");
 
     // We cannot use Intent.createChooser(shareIntent, "Send using...") because it creates an
@@ -122,6 +86,7 @@ public class Sharing extends AndroidNonvisibleComponent {
 
   /**
    * Shares a file using Android' built-in sharing.
+   * @suppressdoc
    */
   @SimpleFunction(description = "Shares a file through any capable application "
       + "installed on the phone by displaying a list of the available apps and allowing the " +
@@ -132,14 +97,12 @@ public class Sharing extends AndroidNonvisibleComponent {
 
   /**
    * Shares a file along with a message using Android' built-in sharing.
+   * @suppressdoc
    */
   @SimpleFunction(description = "Shares both a file and a message through any capable application "
       + "installed on the phone by displaying a list of available apps and allowing the user to " +
       " choose one from the list. The selected app will open with the file and message inserted on it.")
   public void ShareFileWithMessage(String file, String message) {
-
-    String packageName = form.$context().getPackageName();
-
     if (!file.startsWith("file://"))
       file = "file://" + file;
 
@@ -149,8 +112,12 @@ public class Sharing extends AndroidNonvisibleComponent {
       String fileExtension = file.substring(file.lastIndexOf(".")+1).toLowerCase();
       MimeTypeMap mime = MimeTypeMap.getSingleton();
       String type = mime.getMimeTypeFromExtension(fileExtension);
+      if (type == null) {
+        // Fix for #1701: We don't know what it is, but it's at least a sequence of bytes (we hope)
+        type = "application/octet-stream";
+      }
 
-      Uri shareableUri = FileProvider.getUriForFile(form.$context(), packageName + ".provider", imageFile);
+      Uri shareableUri = NougatUtil.getPackageUri(form, imageFile);
       Intent shareIntent = new Intent(Intent.ACTION_SEND);
       shareIntent.putExtra(Intent.EXTRA_STREAM, shareableUri);
       shareIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -158,20 +125,6 @@ public class Sharing extends AndroidNonvisibleComponent {
       if (message.length() > 0) {
         shareIntent.putExtra(Intent.EXTRA_TEXT, message);
       }
-
-      if (!Subject().equals("")) {
-        shareIntent.putExtra(Intent.EXTRA_SUBJECT, Subject());
-      }
-
-      if (!EmailTo().equals("")) {
-        // for TO field, need to include in String array, otherwise won't work
-        shareIntent.putExtra(Intent.EXTRA_EMAIL, new String[] {EmailTo()});
-
-      }
-      if (!EmailCC().equals("")) {
-        shareIntent.putExtra(Intent.EXTRA_CC, new String[] {EmailCC()});
-      }
-
       // We cannot use Intent.createChooser(shareIntent, "Send using...") because it creates an
       // oversized pop up sharing window.
       this.form.startActivity(shareIntent);

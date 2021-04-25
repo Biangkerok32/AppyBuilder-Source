@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -28,9 +25,9 @@ public final class MockLabel extends MockVisibleComponent {
   // GWT label widget used to mock a Simple Label
   private InlineHTML labelWidget;
 
-  private String savedText;     // Saved text, so if we change from
-                                // text to/from html we have the text
-                                // to set
+  private String savedText = "";     // Saved text, so if we change from
+                                     // text to/from html we have the text
+                                     // to set
 
   /**
    * Creates a new MockLabel component.
@@ -103,9 +100,15 @@ public final class MockLabel extends MockVisibleComponent {
   private void setTextProperty(String text) {
     savedText = text;
     if (getPropertyValue(PROPERTY_NAME_HTMLFORMAT).equals("True")) {
-      labelWidget.setHTML(SimpleHtmlSanitizer.sanitizeHtml(text).asString());
+      String sanitizedText = SimpleHtmlSanitizer.sanitizeHtml(text).asString();
+      if (sanitizedText != null) {
+        sanitizedText = sanitizedText.replaceAll("\\\\n", " ");
+      }
+      labelWidget.setHTML(sanitizedText);
     } else {
-      labelWidget.setText(text);
+      labelWidget.setHTML(text.replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;").replaceAll("\\\\n", "<br>")
+      );
     }
   }
 

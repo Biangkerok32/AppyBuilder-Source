@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -72,24 +69,6 @@ public final class ProjectComparators {
       long date1 = proj1.getDateModified();
       long date2 = proj2.getDateModified();
       return Long.signum(date2 - date1); // descending
-    }
-  };
-
-  public static final Comparator<Project> COMPARE_BY_PUBLISHED_ASCENDING = new Comparator<Project>() {
-    @Override
-    public int compare(Project proj1, Project proj2) {
-      Boolean b1 = proj1.isPublished();
-      Boolean b2 = proj2.isPublished();
-      return b1.compareTo(b2);
-    }
-  };
-
-  public static final Comparator<Project> COMPARE_BY_PUBLISHED_DESCENDING = new Comparator<Project>() {
-    @Override
-    public int compare(Project proj1, Project proj2) {
-      Boolean b1 = proj1.isPublished();
-      Boolean b2 = proj2.isPublished();
-      return b2.compareTo(b1);
     }
   };
 }

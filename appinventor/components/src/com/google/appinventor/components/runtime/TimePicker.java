@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2014 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -29,6 +26,11 @@ import java.util.Calendar;
 
 
 /**
+ * A button that, when clicked on, opens a dialog to allow the user to select a time.
+ *
+ * Note: Date and time are manipulated using methods in the [`Clock`](sensors.html#Clock) component.
+ *
+ * @internaldoc
  * A button allowing a user to launch the TimePickerDialog. This component is
  * is based off the ButtonBase class instead of the base Picker class because
  * unlike the other pickers, the TimePicker does not need to launch a new
@@ -72,7 +74,7 @@ public class TimePicker extends ButtonBase {
 
 
   /**
-  * Returns the hour of the time that was last picked using the timepicker.
+  * Returns the hour of the time that was last picked using the `TimePicker``.
   * The time returned is always in the 24hour format.
   *
   * @return hour in 24-hour format
@@ -87,7 +89,7 @@ public class TimePicker extends ButtonBase {
   }
 
   /**
-  * Returns the hour of the time that was last picked using the timepicker.
+  * Returns the hour of the time that was last picked using the `TimePicker`.
   * The time returned is always in the 24hour format.
   *
   * @return hour in 24-hour format
@@ -100,7 +102,7 @@ public class TimePicker extends ButtonBase {
   }
 
   /**
-   * Returns the instant in time that was last picked using the DatePicker.
+   * Returns the instant in time that was last picked using the `TimePicker`.
    * @return instant of the date
    */
   @SimpleProperty(
@@ -110,6 +112,12 @@ public class TimePicker extends ButtonBase {
     return instant;
   }
 
+  /**
+   * Allows the user to set the time to be displayed when the `TimePicker` opens. Valid values for
+   * the hour field are 0-23 and 0-59 for the second field.
+   * @param hour
+   * @param minute
+   */
   @SimpleFunction(description="Set the time to be shown in the Time Picker popup. Current time is shown by default.")
   public void SetTimeToDisplay(int hour, int minute) {
     if ((hour < 0) || (hour > 23)) {
@@ -123,7 +131,13 @@ public class TimePicker extends ButtonBase {
     }
   }
 
-  @SimpleFunction(description="Set the time from the instant to be shown in the Time Picker popup. " +
+  /**
+   * Allows the instant to set the hour and minute to be displayed when the `TimePicker` opens.
+   * Instants are used in [`Clock`](sensors.html#Clock), {@link DatePicker}, and {@link TimePicker}
+   * components.
+   * @param instant
+   */
+  @SimpleFunction(description="Set the time from the instant to be shown in the Time Picker dialog. " +
     "Current time is shown by default.")
   public void SetTimeToDisplayFromInstant(Calendar instant) {
     int hour = Dates.Hour(instant);
@@ -133,7 +147,10 @@ public class TimePicker extends ButtonBase {
     customTime = true;
   }
 
-  @SimpleFunction(description="Launches the TimePicker popup.")
+  /**
+   * Launches the `TimePicker` dialog.
+   */
+  @SimpleFunction(description="Launches the TimePicker dialog.")
   public void LaunchPicker(){
     click();
   }
@@ -174,7 +191,7 @@ public class TimePicker extends ButtonBase {
       };
 
   /**
-  * Indicates the user has set the time.
+  * This event is run when a user has set the time in the popup dialog.
   */
   @SimpleEvent(description="This event is run when a user has set the time in the popup dialog.")
   public void AfterTimeSet() {

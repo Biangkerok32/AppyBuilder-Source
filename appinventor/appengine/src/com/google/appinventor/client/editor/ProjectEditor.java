@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -26,6 +23,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Abstract superclass for all project editors.
@@ -53,6 +52,7 @@ public abstract class ProjectEditor extends Composite {
   private final HashMap<String,String> locationHashMap = new HashMap<String,String>();
   private final DeckPanel deckPanel;
   private FileEditor selectedFileEditor;
+  private final TreeMap<String, Boolean> screenHashMap = new TreeMap<String, Boolean>();
 
   /**
    * Creates a {@code ProjectEditor} instance.
@@ -101,6 +101,41 @@ public abstract class ProjectEditor extends Composite {
    * other UI elements related to hiding the project editor.
    */
   protected abstract void onHide();
+
+  public final void setScreenCheckboxState(String screen, Boolean isChecked) {
+    screenHashMap.put(screen, isChecked);
+  }
+
+  public final Boolean getScreenCheckboxState(String screen) {
+    return screenHashMap.get(screen);
+  }
+
+  public final String getScreenCheckboxMapString() {
+    String screenCheckboxMap = "";
+    int count = 0;
+    Set<String> screens = screenHashMap.keySet();
+    int size = screens.size();
+    for (String screen : screens) {
+      Boolean isChecked = screenHashMap.get(screen);
+      if (isChecked == null) {
+        continue;
+      }
+      String isCheckedString = (isChecked) ? "True" : "False";
+      String separator = (count == size) ? "" : " ";
+      screenCheckboxMap += screen + ":" + isCheckedString + separator;
+    }
+    return screenCheckboxMap;
+  }
+
+  public final void buildScreenHashMap(String screenCheckboxMap) {
+    String[] pairs = screenCheckboxMap.split(" ");
+    for (String pair : pairs) {
+      String[] mapping = pair.split(":");
+      String screen = mapping[0];
+      Boolean isChecked = Boolean.parseBoolean(mapping[1]);
+      screenHashMap.put(screen, isChecked);
+    }
+  }
 
   /**
    * Adds a file editor to this project editor.
@@ -207,6 +242,7 @@ public abstract class ProjectEditor extends Composite {
       fileIds.remove(index);
       deckPanel.remove(fileEditor);
       if (selectedFileEditor == fileEditor) {
+        selectedFileEditor.onHide();
         selectedFileEditor = null;
       }
       fileEditor.onClose();

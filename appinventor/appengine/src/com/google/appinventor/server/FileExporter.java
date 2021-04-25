@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -13,6 +10,7 @@ import com.google.appinventor.shared.rpc.project.ProjectSourceZip;
 import com.google.appinventor.shared.rpc.project.RawFile;
 
 import java.io.IOException;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -60,9 +58,19 @@ public interface FileExporter {
     boolean includeScreenShots,
     boolean fatalError, boolean forGallery) throws IOException;
 
-  ProjectSourceZip exportProjectSourceScreenZip(String userId, long projectId,
-                                                @Nullable String zipName)
-          throws IOException;
+  /**
+   * Exports projects selected by the user as a zip of zips.
+   *
+   * @param userId the userId
+   * @param zipName the desired name for the zip
+   * @param projectIds the list of project ids corresponding to selected projects
+   * @return the name, contents, and number of files in the zip
+   * @throws IllegalArgumentException if download request cannot be fulfilled
+   *         (no projects)
+   * @throws IOException if files cannot be written
+   */
+  ProjectSourceZip exportSelectedProjectsSourceZip(String userId, String zipName, List<Long> projectIds) throws IOException;
+
   /**
    * Exports all of the user's projects' source files as a zip of zips.
    *

@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2018 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -23,7 +20,6 @@ import com.google.gwt.user.client.ui.PopupPanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 
 import static com.google.appinventor.client.Ode.MESSAGES;
-
 
 /**
  * Defines a widget that has the appearance of a question mark and
@@ -90,17 +86,34 @@ public final class ComponentHelpWidget extends AbstractPaletteItemWidget {
             ? referenceComponentsUrl + "index.html"
             : referenceComponentsUrl + categoryDocUrlString + ".html#" + scd.getName();
       }
-      if (version > 0) {
-          HTML html = new HTML("<b>" + MESSAGES.externalComponentVersion() + "</b> " + version);
-          html.setStyleName("ode-ComponentHelpPopup-Body");
-          inner.add(html);
-        }
-
+      if (!scd.getVersionName().equals("")) {
+        HTML html = new HTML("<b>" + MESSAGES.externalComponentVersion() + "</b> " +
+            scd.getVersionName());
+        html.setStyleName("ode-ComponentHelpPopup-Body");
+        inner.add(html);
+      } else if (version > 0) {
+        HTML html = new HTML("<b>" + MESSAGES.externalComponentVersion() + "</b> " + version);
+        html.setStyleName("ode-ComponentHelpPopup-Body");
+        inner.add(html);
+      }
+      if (scd.getExternal() && scd.getDateBuilt() != null && !scd.getDateBuilt().equals("")) {
+        String date = scd.getDateBuilt().split("T")[0];
+        HTML dateCreatedHtml = new HTML("<b>" + MESSAGES.dateBuilt() + "</b> <time datetime=\"" + scd.getDateBuilt() + "\">" + date + "</time>");
+        dateCreatedHtml.setStyleName("ode-ComponentHelpPopup-Body");
+        inner.add(dateCreatedHtml);
+      }
       if (url != null) {  // only show if there is a relevant URL
         HTML link = new HTML("<a href=\"" + url + "\" target=\"_blank\">" +
             MESSAGES.moreInformation() + "</a>");
         link.setStyleName("ode-ComponentHelpPopup-Link");
         inner.add(link);
+      }
+      if (scd.getExternal() && !"".equals(scd.getLicense())) {
+        String license = scd.getLicense();
+        HTML viewLicenseHTML = new HTML("<a href=\"" + license + "\" target=\"_blank\">" +
+            MESSAGES.viewLicense() + "</a>");
+        viewLicenseHTML.setStyleName("ode-ComponentHelpPopup-Link");
+        inner.add(viewLicenseHTML);
       }
 
       setWidget(inner);
@@ -131,7 +144,7 @@ public final class ComponentHelpWidget extends AbstractPaletteItemWidget {
                         - offsetHeight + Y_OFFSET)));
           } else {
             setPopupPosition(ComponentHelpWidget.this.getAbsoluteLeft() + X_OFFSET,
-                    Math.min(ComponentHelpWidget.this.getAbsoluteTop() + Y_OFFSET,
+                Math.min(ComponentHelpWidget.this.getAbsoluteTop() + Y_OFFSET,
                     Math.max(0, Window.getClientHeight()
                         - offsetHeight + Y_OFFSET)));
           }
@@ -149,7 +162,7 @@ public final class ComponentHelpWidget extends AbstractPaletteItemWidget {
     final long MINIMUM_MS_BETWEEN_SHOWS = 250;  // .25 seconds
 
     if (System.currentTimeMillis() - lastClosureTime >=
-            MINIMUM_MS_BETWEEN_SHOWS) {
+        MINIMUM_MS_BETWEEN_SHOWS) {
       new ComponentHelpPopup();
     }
   }

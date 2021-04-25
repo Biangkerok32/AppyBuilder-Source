@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2016 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -31,7 +28,7 @@ public final class MockScrollHorizontalArrangement extends MockHVArrangement {
    * @param editor  editor of source file the component belongs to
    */
   public MockScrollHorizontalArrangement(SimpleEditor editor) {
-    super(editor, TYPE, images.horizScroll(),
+    super(editor, TYPE, images.horizontal(),
       ComponentConstants.LAYOUT_ORIENTATION_HORIZONTAL,
       ComponentConstants.SCROLLABLE_ARRANGEMENT);
   }

@@ -104,6 +104,26 @@ goog.labs.userAgent.platform.isChromeOS = function() {
   return goog.labs.userAgent.util.matchUserAgent('CrOS');
 };
 
+/**
+ * @return {boolean} Whether the platform is Chromecast.
+ */
+goog.labs.userAgent.platform.isChromecast = function() {
+  return goog.labs.userAgent.util.matchUserAgent('CrKey');
+};
+
+/**
+ * @return {boolean} Whether the platform is KaiOS.
+ */
+goog.labs.userAgent.platform.isKaiOS = function() {
+  return goog.labs.userAgent.util.matchUserAgentIgnoreCase('KaiOS');
+};
+
+/**
+ * @return {boolean} Whether the platform is Go2Phone.
+ */
+goog.labs.userAgent.platform.isGo2Phone = function() {
+  return goog.labs.userAgent.util.matchUserAgentIgnoreCase('GAFP');
+};
 
 /**
  * The version of the platform. We only determine the version for Windows,

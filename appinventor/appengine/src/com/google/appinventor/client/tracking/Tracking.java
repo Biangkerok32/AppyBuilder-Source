@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -28,10 +25,14 @@ public class Tracking {
       "New-YA";
   public static final String PROJECT_ACTION_DELETE_PROJECT_YA = PROJECT_ACTION_PREFIX +
       "DeleteProject-YA";
+  public static final String PROJECT_ACTION_RESTORE_PROJECT_YA = PROJECT_ACTION_PREFIX +
+      "RestoreProject-YA";
+  public static final String PROJECT_ACTION_MOVE_TO_TRASH_PROJECT_YA = PROJECT_ACTION_PREFIX +
+      "MoveToTrashProject-YA";
   public static final String PROJECT_ACTION_DELETE_FILE_YA = PROJECT_ACTION_PREFIX +
       "DeleteFile-YA";
   public static final String PROJECT_ACTION_PREVIEW_FILE_YA = PROJECT_ACTION_PREFIX +
-          "PreviewFile-YA";
+      "PreviewFile-YA";
   public static final String PROJECT_ACTION_BUILD_BARCODE_YA = PROJECT_ACTION_PREFIX +
       "BuildBarcode-YA";
   public static final String PROJECT_ACTION_BUILD_DOWNLOAD_YA = PROJECT_ACTION_PREFIX +
@@ -42,6 +43,8 @@ public class Tracking {
       "DownloadProjectSource-YA";
   public static final String PROJECT_ACTION_DOWNLOAD_FILE_YA = PROJECT_ACTION_PREFIX +
       "DownloadFile-YA";
+  public static final String PROJECT_ACTION_DOWNLOAD_SELECTED_PROJECTS_SOURCE_YA =
+      PROJECT_ACTION_PREFIX + "DownloadSelectedProjectsSource-YA";
   public static final String PROJECT_ACTION_DOWNLOAD_ALL_PROJECTS_SOURCE_YA =
       PROJECT_ACTION_PREFIX + "DownloadAllProjectsSource-YA";
   public static final String PROJECT_ACTION_SAVE_YA = PROJECT_ACTION_PREFIX +
@@ -52,10 +55,6 @@ public class Tracking {
       "Checkpoint-YA";
   public static final String PROJECT_ACTION_ADDFORM_YA = PROJECT_ACTION_PREFIX +
       "AddForm-YA";
-  public static final String PROJECT_ACTION_COPYFORM_YA = PROJECT_ACTION_PREFIX +
-          "CopyForm-YA";
-  public static final String PROJECT_ACTION_GENERATELDFORM_YA = PROJECT_ACTION_PREFIX +
-          "GenerateLDForm-YA";
   public static final String PROJECT_ACTION_REMOVEFORM_YA = PROJECT_ACTION_PREFIX +
       "RemoveForm-YA";
   public static final String PROJECT_SUBACTION_BUILD_YA = PROJECT_ACTION_PREFIX +

@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -53,7 +50,7 @@ public class OdeAuthFilterTest {
     localUserMock = PowerMock.createMock(LocalUser.class);
     PowerMock.mockStatic(LocalUser.class);
     expect(LocalUser.getInstance()).andReturn(localUserMock).anyTimes();
-    localUserMock.set(new User("1", "NonSuch", "NoName", null, 0, false, false, 0, null));
+    localUserMock.set(new User("1", "NonSuch", false, false, null));
     expectLastCall().times(1);
     expect(localUserMock.getUserEmail()).andReturn("NonSuch").times(1);
     localUserInfo = PowerMock.createMock(OdeAuthFilter.UserInfo.class);
@@ -87,7 +84,7 @@ public class OdeAuthFilterTest {
 
     OdeAuthFilter myAuthFilter = new OdeAuthFilter() {
       @Override
-      void setUserFromUserId(String userId, boolean isAdmin, boolean isReadOnly) { localUserMock.set(new User("1", "NonSuch", "NoName", null, 0, false, false, 0, null)); return;}
+      void setUserFromUserId(String userId, boolean isAdmin, boolean isReadOnly) { localUserMock.set(new User("1", "NonSuch", false, false, null)); return;}
       @Override
       void removeUser() {}
       @Override
@@ -123,7 +120,7 @@ public class OdeAuthFilterTest {
 
     OdeAuthFilter myAuthFilter = new OdeAuthFilter() {
       @Override
-      void setUserFromUserId(String userId, boolean isAdmin, boolean isReadOnly) { localUserMock.set(new User("1", "NonSuch", "NoName", null, 0, false, false, 0, null)); return;}
+      void setUserFromUserId(String userId, boolean isAdmin, boolean isReadOnly) { localUserMock.set(new User("1", "NonSuch", false, false, null)); return;}
       @Override
       void removeUser() {}
       @Override

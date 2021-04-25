@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -56,7 +53,7 @@ public interface Component {
    */
   static final int COLOR_NONE = 0x00FFFFFF;
   static final int COLOR_BLACK = 0xFF000000;
-  static final int COLOR_BLUE = 0xFF66A3FF;
+  static final int COLOR_BLUE = 0xFF0000FF;
   static final int COLOR_CYAN = 0xFF00FFFF;
   static final int COLOR_DKGRAY = 0xFF444444;
   static final int COLOR_GRAY = 0xFF888888;
@@ -69,16 +66,11 @@ public interface Component {
   static final int COLOR_WHITE = 0xFFFFFFFF;
   static final int COLOR_YELLOW = 0xFFFFFF00;
   static final int COLOR_DEFAULT = 0x00000000;
-    static final int COLOR_INDIGO = 0xFF3F51B5;
 
-    // For colors, use Android studio. Check out Colors.xml, in gutter, double click on a color. It'll show you color
-  //    definition. Colors above and below are same. Above has 0x... and below has &H. Also, you'll need to update OdeMessage to include a
-  // color reference (search in it for indigo) and cross-ref it in YoungAndroidColorChoicePropertyEditor
   static final String DEFAULT_VALUE_COLOR_NONE = "&H00FFFFFF";
   static final String DEFAULT_VALUE_COLOR_BLACK = "&HFF000000";
-  static final String DEFAULT_VALUE_COLOR_BLUE = "&HFF66A3FF";
+  static final String DEFAULT_VALUE_COLOR_BLUE = "&HFF0000FF";
   static final String DEFAULT_VALUE_COLOR_CYAN = "&HFF00FFFF";
-  static final String DEFAULT_VALUE_COLOR_CYAN_DARK = "&HFF00c6c6";
   static final String DEFAULT_VALUE_COLOR_DKGRAY = "&HFF444444";
   static final String DEFAULT_VALUE_COLOR_GRAY = "&HFF888888";
   static final String DEFAULT_VALUE_COLOR_GREEN = "&HFF00FF00";
@@ -90,7 +82,6 @@ public interface Component {
   static final String DEFAULT_VALUE_COLOR_WHITE = "&HFFFFFFFF";
   static final String DEFAULT_VALUE_COLOR_YELLOW = "&HFFFFFF00";
   static final String DEFAULT_VALUE_COLOR_DEFAULT = "&H00000000";
-static final String DEFAULT_VALUE_COLOR_INDIGO = "&HFF3F51B5";
 
   /*
    * Font constants.
@@ -163,4 +154,3 @@ static final String DEFAULT_VALUE_COLOR_INDIGO = "&HFF3F51B5";
   static final String DEFAULT_VALUE_TEXT_TO_SPEECH_LANGUAGE = "";
 
 }
-

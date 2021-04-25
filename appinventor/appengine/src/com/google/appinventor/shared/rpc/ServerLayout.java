@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -39,7 +36,7 @@ public class ServerLayout {
 
   /**
    * Relative path of the
-   * {@link com.google.appinventor.server.component.ComponentService} within
+   * {@link com.google.appinventor.shared.rpc.component.ComponentService} within
    * the ODE GWT module.
    */
   public static final String COMPONENT_SERVICE = "components";
@@ -53,34 +50,6 @@ public class ServerLayout {
 
   /**
    * Relative path of the
-   * {@link com.google.appinventor.shared.rpc.project.GalleryService} within
-   * the ODE GWT module.
-   */
-  public static final String GALLERY_SERVICE = "gallery";
-
-
-  /**
-   * Relative path of the {@link com.google.appinventor.server.GalleryServlet}
-   * within the ODE GWT module.
-   */
-  public static final String GALLERY_SERVLET = "gallery_servlet";
-
-
-  /**
-   * Relative path of the {@link com.google.appinventor.server.AndroidServlet}
-   * within the ODE GWT module.
-   */
-  public static final String ANDROID_SERVLET = "android";
-
-  /**
-   * Relative path of the
-   * {@link com.google.appinventor.shared.rpc.help.HelpService} within the
-   * ODE GWT module.
-   */
-  public static final String HELP_SERVICE = "help";
-
-  /**
-   * Relative path of the
    * {@link com.google.appinventor.shared.rpc.user.UserInfoService} within the
    * ODE GWT module.
    */
@@ -91,13 +60,6 @@ public class ServerLayout {
    */
 
   public static final String ADMIN_INFO_SERVICE = "admininfo";
-
-  /**
-   * Relative path of the
-   * {@link com.google.appinventor.shared.rpc.launch.LaunchService} within
-   * the ODE GWT module.
-   */
-  public static final String LAUNCH_SERVICE = "launch";
 
   /**
    * Relative path of the
@@ -127,9 +89,10 @@ public class ServerLayout {
 
   /**
    * Relative path within {@link com.google.appinventor.server.DownloadServlet}
-   * for downloading a project's sources for screen
+   * for downloading selected of a user's projects' sources.
    */
-  public static final String DOWNLOAD_PROJECT_SOURCE_SCREEN = "project-source-screen";
+  public static final String DOWNLOAD_SELECTED_PROJECTS_SOURCE = "selected-projects-source";
+
   /**
    * Relative path within {@link com.google.appinventor.server.DownloadServlet}
    * for downloading all of a user's projects' sources.
@@ -166,11 +129,6 @@ public class ServerLayout {
    * for uploading a project
    */
   public static final String UPLOAD_PROJECT = "project";
-  /**
-   * Relative path within {@link com.google.appinventor.server.UploadServlet}
-   * for uploading a screen
-   */
-  public static final String UPLOAD_SCREEN = "screen";
 
   /**
    * Relative path within {@link com.google.appinventor.server.UploadServlet}
@@ -209,27 +167,6 @@ public class ServerLayout {
   public static final String YA_TOS_FORM = "Ya_tos_form.html";
 
   /**
-   * Relative base path of the
-   * {@link com.google.appinventor.server.WebStartJnlpServlet}
-   * within the ODE GWT module.
-   */
-  public static final String WEBSTART_JNLP_SERVLET_BASE = "webstartjnlp/";
-
-  /**
-   * Relative path within
-   * {@link com.google.appinventor.server.WebStartJnlpServlet}
-   * for starting codeblocks (for Young Android)
-   */
-  public static final String WEBSTART_JNLP_PURPOSE_CODEBLOCKS = "codeblocks";
-
-  /**
-   * Relative path of the
-   * {@link com.google.appinventor.server.WebStartFileServlet}
-   * within the ODE GWT module.
-   */
-  public static final String WEBSTART_FILE_SERVLET = "webstartfile";
-
-  /**
    * Relative path of the {@link com.google.appinventor.server.ReceiveBuildServlet} within
    * {@link #ODE_BASEURL_NOAUTH}
    */
@@ -240,10 +177,6 @@ public class ServerLayout {
    */
   public static final String UPLOAD_FILE_FORM_ELEMENT = "uploadFile";
 
-  /**
-   * Name of the form element to upload screens.
-   */
-  public static final String UPLOAD_PROJECT_SCREEN_FORM_ELEMENT = "uploadProjectScreen";
   /**
    * Name of the form element to upload project archives.
    */

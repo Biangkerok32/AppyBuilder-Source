@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -247,7 +244,7 @@ public class StringUtilsTest extends TestCase {
 
   public void testNormalizeForFilename() {
     assertEquals("MyAppInventorProject1",
-        StringUtils.normalizeForFilename("My AppyBuilder Project 1"));
+        StringUtils.normalizeForFilename("My App Inventor Project 1"));
     assertEquals("testproject4",
       StringUtils.normalizeForFilename("1 2 3 test project 4"));
   }

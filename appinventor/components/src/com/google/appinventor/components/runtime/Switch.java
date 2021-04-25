@@ -1,253 +1,223 @@
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
+// -*- mode: java; c-basic-offset: 2; -*-
+// Copyright 2018-2020 MIT, All rights reserved
+// Released under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 package com.google.appinventor.components.runtime;
 
 import android.app.Activity;
-import android.graphics.Color;
-import android.graphics.PorterDuff;
-import android.graphics.drawable.Drawable;
-import android.os.Build;
-import android.view.View;
+import android.content.res.ColorStateList;
+import android.widget.CheckBox;
 import android.widget.CompoundButton;
-import com.google.appinventor.components.annotations.*;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.core.graphics.drawable.DrawableCompat;
+import com.google.appinventor.components.annotations.DesignerComponent;
+import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.PropertyCategory;
+import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.annotations.SimpleObject;
+import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
 import com.google.appinventor.components.runtime.util.SdkLevel;
-import com.google.appinventor.components.runtime.util.TextViewUtil;
 
 /**
- * This class is used to display a ToggleButton.
- * <p>A ToggleButton Displays checked/unchecked states as a button with a 'light' indicator and by default
- * accompanied with the text 'ON' or 'OFF'.
+ * `Switch` components can detect user taps and can change their boolean state in response. They
+ * are identical to {@link CheckBox}es except in appearance.
  *
+ * Switches have an on (true) state and an off (false) state. A `Switch` component raises an event
+ * when the user taps it to toggle between states.
  */
-@DesignerComponent(version = YaVersion.TOGGLER_COMPONENT_VERSION,
-    description = "Update ODE ",
+@DesignerComponent(version = YaVersion.SWITCH_COMPONENT_VERSION,
+    description = "Toggle switch that raises an event when the user clicks on it. " +
+    "There are many properties affecting its appearance that can be set in " +
+    "the Designer or Blocks Editor.",
     category = ComponentCategory.USERINTERFACE)
 @SimpleObject
-public class Switch extends AndroidViewComponent implements CompoundButton.OnCheckedChangeListener{
-  private final static String LOG_TAG = "Switch";
-    private final Activity context;
-  private android.widget.Switch view;
-    private int textColor;
-    private String switchText = "Switch: ";
-    private int trackColorLeftChecked = Color.parseColor("#673AB7");
-    private int trackColorRightNotChecked = Color.parseColor("#B39DDB");
-    private int thumbColorChecked = Color.parseColor("#673AB7");
-    private int thumbColorNotChecked = Color.parseColor("#B39DDB");
+public final class Switch extends ToggleBase<CompoundButton> {
 
-    /**
+  // Backing for thumb color
+  private int thumbColorActive;
+  private int thumbColorInactive;
+
+  // Backing for track color
+  private int trackColorActive;
+  private int trackColorInactive;
+
+  private final Activity activity;
+  private final SwitchCompat switchView;
+
+  /**
    * Creates a new Switch component.
    *
-   * @param container container that the component will be placed in
+   * @param container container, component will be placed in
    */
   public Switch(ComponentContainer container) {
-      super(container);
-      view = new android.widget.Switch(container.$context());
-      container.$add(this);
-      this.context = container.$context();
+    super(container);
 
-      view.setOnCheckedChangeListener(this);
-      view.setChecked(true);
-      Text(switchText);
-      FontSize(Component.FONT_DEFAULT_SIZE);
-      TextColor(Component.COLOR_BLACK);
-//      ThumbColor(Component.COLOR_RED);
-//      TrackColor(Component.COLOR_LTGRAY);
-      ThumbColorChecked(Component.COLOR_RED);
-      TrackColorChecked(Component.COLOR_GREEN);
-      ThumbColorUnchecked(Component.COLOR_LTGRAY);
-      TrackColorUnchecked(Component.COLOR_LTGRAY);
+    this.activity = container.$context();
+
+    // Using AppCompat, Switch component is only supported in API 14 and higher
+    // TODO: If we bump minSDK to 14, then we can change this to only use SwitchCompat.
+    if (SdkLevel.getLevel() < SdkLevel.LEVEL_ICE_CREAM_SANDWICH) {
+      switchView = null;
+      view = new CheckBox(activity);
+    } else {
+      switchView = new SwitchCompat(activity);
+      view = switchView;
+    }
+
+    On(false);
+
+    ThumbColorActive(Component.COLOR_WHITE);
+    ThumbColorInactive(Component.COLOR_LTGRAY);
+    TrackColorActive(Component.COLOR_GREEN);
+    TrackColorInactive(Component.COLOR_GRAY);
+    initToggle();
+  }
+
+  private ColorStateList createSwitchColors(int active_color, int inactive_color) {
+    return new ColorStateList(new int[][]{
+            new int[]{android.R.attr.state_checked},
+            new int[]{}
+            },
+            new int[]{
+                    active_color,
+                    inactive_color
+            });
+  }
+
+  /**
+   * Returns the `%type%`'s thumb color (button that toggles back and forth)
+   * when the switch is ON/Checked
+   *
+   * @return  thumb RGB color with alpha
+   */
+  @SimpleProperty(category = PropertyCategory.APPEARANCE)
+  public int ThumbColorActive() {
+    return thumbColorActive;
+  }
+
+  /**
+   * Specifies the `%type%`'s thumb color when switch is in the On state.
+   *
+   * @param argb  thumb RGB color with alpha
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR,
+          defaultValue = Component.DEFAULT_VALUE_COLOR_WHITE)
+  @SimpleProperty
+  public void ThumbColorActive(int argb) {
+    thumbColorActive = argb;
+    if (switchView != null) {
+      DrawableCompat.setTintList(switchView.getThumbDrawable(), createSwitchColors(argb, thumbColorInactive));
+      view.invalidate();
+    }
+  }
+
+  /**
+   * Returns the `%type%`'s thumb color (button that toggles back and forth)
+   * when the switch is Off/Unchecked
+   *
+   * @return  thumb RGB color with alpha
+   */
+  @SimpleProperty(category = PropertyCategory.APPEARANCE, userVisible = true)
+  public int ThumbColorInactive() {
+    return thumbColorInactive;
+  }
+
+  /**
+   * Specifies the `%type%`'s thumb color when switch is in the Off state.
+   *
+   * @param argb  thumb RGB color with alpha
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR,
+          defaultValue = Component.DEFAULT_VALUE_COLOR_LTGRAY)
+  @SimpleProperty
+  public void ThumbColorInactive(int argb) {
+    thumbColorInactive = argb;
+    if (switchView != null) {
+      DrawableCompat.setTintList(switchView.getThumbDrawable(), createSwitchColors(thumbColorActive, argb));
+      view.invalidate();
+    }
+  }
+
+  /**
+   * Returns the `%type%`'s track color
+   *
+   * @return  track RGB color with alpha
+   */
+  @SimpleProperty(category = PropertyCategory.APPEARANCE, userVisible = true)
+  public int TrackColorActive() {
+    return trackColorActive;
+  }
+  @SimpleProperty(category = PropertyCategory.APPEARANCE, userVisible = true)
+  public int TrackColorInactive() {
+    return trackColorInactive;
+  }
+
+  /**
+   * Specifies the `%type%`'s track color when in the On state.
+   *
+   * @param argb  track RGB color with alpha
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR,
+          defaultValue = Component.DEFAULT_VALUE_COLOR_GREEN)
+  @SimpleProperty(description = "Color of the toggle track when switched on", userVisible = true)
+  public void TrackColorActive(int argb) {
+    trackColorActive = argb;
+    if (switchView != null) {
+      DrawableCompat.setTintList(switchView.getTrackDrawable(), createSwitchColors(argb, trackColorInactive));
+      view.invalidate();
+    }
+  }
+
+  /**
+   * Specifies the `%type%`'s track color when in the Off state.
+   * @param argb
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR,
+          defaultValue = Component.DEFAULT_VALUE_COLOR_DKGRAY)
+  @SimpleProperty(description = "Color of the toggle track when switched off", userVisible = true)
+  public void TrackColorInactive(int argb) {
+    trackColorInactive = argb;
+    if (switchView != null) {
+      DrawableCompat.setTintList(switchView.getTrackDrawable(), createSwitchColors(trackColorActive, argb));
+      view.invalidate();
+    }
+  }
+
+  /**
+   * Returns true if the `%type%` is on.
+   *
+   * @return  {@code true} indicates checked, {@code false} unchecked
+   */
+  @SimpleProperty(
+          category = PropertyCategory.BEHAVIOR)
+  public boolean On() {
+    return view.isChecked();
+  }
+
+  /**
+   * True if the switch is in the On state, false otherwise.
+   *
+   * @internaldoc
+   * Checked property setter method.
+   *
+   * @param value  {@code true} indicates checked, {@code false} unchecked
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+          defaultValue = "False")
+  @SimpleProperty
+  public void On(boolean value) {
+    view.setChecked(value);
+    view.invalidate();
   }
 
   @Override
-  public View getView() {
-    return view;
+  @SimpleEvent(description = "User change the state of the `Switch` from On to Off or back.")
+  public void Changed() {
+    super.Changed();
   }
 
-
-    /**
-     * The text for the button when it is checked
-     * @param text  The text for the button when it is checked
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING, defaultValue = "Switch: ")
-    @SimpleProperty(description = "Text for switch")
-    public void Text(String text) {
-        switchText = text;
-        view.setText(text);
-    }
-
-    @SimpleProperty(description = "Gets the value of Switch text")
-    public String Text() {
-        return switchText;
-    }
-
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR,
-            defaultValue = Component.DEFAULT_VALUE_COLOR_BLACK)
-    @SimpleProperty
-    public void TextColor(int argb) {
-        textColor = argb;
-        if (argb != Component.COLOR_DEFAULT) {
-            TextViewUtil.setTextColor(view, argb);
-        } else {
-            TextViewUtil.setTextColor(view, Component.COLOR_BLACK);
-        }
-    }
-
-    @SimpleProperty(category = PropertyCategory.APPEARANCE)
-    public int TextColor() {
-        return textColor;
-    }
-
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_FLOAT,
-            defaultValue = Component.FONT_DEFAULT_SIZE + "")
-    @SimpleProperty(description = "Sets up the font size for the component")
-    public void FontSize(float size) {
-        if (view == null) {
-            view = new android.widget.Switch(container.$context());
-        }
-        view.setTextSize(size);
-        view.invalidate();
-//        TextViewUtil.setFontSize(view, size);
-    }
-
-
-    /**
-     * enables or disables the component
-     *
-     * @param enabled
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "True")
-    @SimpleProperty(description = "Enables or disables the component")
-    public void Enabled(boolean enabled) {
-       view.setEnabled(enabled);
-    }
-
-//    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR, defaultValue = Component.DEFAULT_VALUE_COLOR_RED)
-    @SimpleProperty(description = "The thumb color. Works only for Android +4.1.x", userVisible = false)
-    public void ThumbColor(int color) {
-        if (android.os.Build.VERSION.SDK_INT < SdkLevel.LEVEL_JELLYBEAN) {
-            return;
-        }
-        try {
-            //        int tint = Color.parseColor(String.valueOf(argb));  //don't do this, crashes
-            // specifically on Samsung galaxy 4.2, the drawable returns null
-            Drawable drawable =  view.getThumbDrawable();
-            drawable.setColorFilter(color, PorterDuff.Mode.MULTIPLY);
-        } catch (Exception e) {
-            //no-op
-        }
-    }
-
-//     @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR, defaultValue = Component.DEFAULT_VALUE_COLOR_LTGRAY)
-    @SimpleProperty(description = "The track color. Works only for Android +4.1.x", userVisible = false)
-    public void TrackColor(int argb) {
-        if (android.os.Build.VERSION.SDK_INT < SdkLevel.LEVEL_JELLYBEAN) {
-            return;
-        }
-         try {
-             Drawable drawable =  view.getTrackDrawable();
-//         drawable.setColorFilter(argb, PorterDuff.Mode.MULTIPLY);   //thumb color won't change between on, off state
-             drawable.setColorFilter(argb, PorterDuff.Mode.LIGHTEN);
-//        int tint = Color.parseColor(String.valueOf(argb));
-//        view.getTrackDrawable().setColorFilter(tint, PorterDuff.Mode.MULTIPLY);
-         } catch (Exception e) {
-             //no-op
-         }
-     }
-
-    /**
-     * Returns true if the toggler is on.
-     *
-     * @return  {@code true} indicates toggler is in ON state, {@code false} OFF state
-     */
-    @SimpleProperty(category = PropertyCategory.BEHAVIOR)
-    public boolean Checked() {
-        return view.isChecked();
-    }
-
-    /**
-     * Specifies whether the toggler should be in ON state or OFF state
-     *
-     * @param enabled
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "True")
-    @SimpleProperty(description = "Sets state to checked or unchecked")
-    public void Checked(boolean enabled) {
-       view.setChecked(enabled);
-    }
-
-    /**
-     * Default Changed event handler.
-     */
-    @SimpleEvent(description = "Triggered when state of Switch changes. Use isChecked to determine if checked or not-checked")
-    public void Click(boolean isChecked) {
-        EventDispatcher.dispatchEvent(this, "Click", isChecked);
-    }
-
-
-    @Override
-    public void onCheckedChanged(CompoundButton compoundButton, boolean enabled) {
-        view.setChecked(enabled);
-        if (android.os.Build.VERSION.SDK_INT >= SdkLevel.LEVEL_JELLYBEAN) {
-            // Now dealing with API +16. We can change color
-        Drawable thumbDrawable = view.getThumbDrawable();
-        Drawable trackDrawable = view.getTrackDrawable();
-        if (view.isChecked()) {
-            trackDrawable.setColorFilter(trackColorLeftChecked, PorterDuff.Mode.MULTIPLY);
-            thumbDrawable.setColorFilter(thumbColorChecked, PorterDuff.Mode.MULTIPLY);
-        } else {
-            trackDrawable.setColorFilter(trackColorRightNotChecked, PorterDuff.Mode.MULTIPLY);
-            thumbDrawable.setColorFilter(thumbColorNotChecked, PorterDuff.Mode.MULTIPLY);
-        }
-        }
-        Click(enabled);
-    }
-
-
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR, defaultValue = Component.DEFAULT_VALUE_COLOR_LTGRAY)
-    @SimpleProperty(description = "Sets up the right track color - when switch is NOT checked. This works only for Android Version +4.1.x")
-    public void TrackColorUnchecked(int color) {
-        if (android.os.Build.VERSION.SDK_INT >= SdkLevel.LEVEL_JELLYBEAN) {
-        this.trackColorRightNotChecked = color;
-        if (!view.isChecked()) {
-            Drawable drawable =  view.getTrackDrawable();
-            drawable.setColorFilter(color, PorterDuff.Mode.MULTIPLY);
-            }
-        }
-    }
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR, defaultValue = Component.DEFAULT_VALUE_COLOR_GREEN)
-    @SimpleProperty(description = "Sets up the left track color - when switch is checked. This works only for Android Version +4.1.x")
-    public void TrackColorChecked(int color) {
-        if (android.os.Build.VERSION.SDK_INT >= SdkLevel.LEVEL_JELLYBEAN) {
-        this.trackColorLeftChecked = color;
-        if (view.isChecked()) {
-            Drawable drawable =  view.getTrackDrawable();
-            drawable.setColorFilter(color, PorterDuff.Mode.MULTIPLY);
-            }
-        }
-    }
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR, defaultValue = Component.DEFAULT_VALUE_COLOR_RED)
-    @SimpleProperty(description = "Sets up the Switch Thumb color, when checked. This works only for Android Version +4.1.x")
-    public void ThumbColorChecked(int color) {
-        if (android.os.Build.VERSION.SDK_INT >= SdkLevel.LEVEL_JELLYBEAN) {
-        this.thumbColorChecked = color;
-        if(view.isChecked()){
-            Drawable drawable =  view.getThumbDrawable();
-            drawable.setColorFilter(color, PorterDuff.Mode.MULTIPLY);
-            }
-        }
-    }
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR, defaultValue = Component.DEFAULT_VALUE_COLOR_GRAY)
-    @SimpleProperty(description = "Sets up the Switch Thumb color, when checked. This works only for Android Version +4.1.x")
-    public void ThumbColorUnchecked(int color) {
-        if (android.os.Build.VERSION.SDK_INT >= SdkLevel.LEVEL_JELLYBEAN) {
-        this.thumbColorNotChecked = color;
-        if(!view.isChecked()){
-            Drawable drawable =  view.getThumbDrawable();
-            drawable.setColorFilter(color, PorterDuff.Mode.MULTIPLY);
-            }
-        }
-    }
 }

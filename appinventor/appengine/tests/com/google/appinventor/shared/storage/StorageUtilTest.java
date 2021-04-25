@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -52,7 +49,7 @@ public class StorageUtilTest extends TestCase {
     assertEquals("image/jpeg", StorageUtil.getContentTypeForFilePath("kitty.jpg"));
     assertEquals("image/jpeg", StorageUtil.getContentTypeForFilePath("kitty.jpeg"));
     assertEquals("image/png", StorageUtil.getContentTypeForFilePath("kitty.png"));
-    assertEquals("application/vnd.android.package-archive; charset=utf-8",
+    assertEquals("application/vnd.android.package-archive",
         StorageUtil.getContentTypeForFilePath("HelloPurr.apk"));
     assertEquals("application/zip; charset=utf-8",
         StorageUtil.getContentTypeForFilePath("HelloPurr.aia"));

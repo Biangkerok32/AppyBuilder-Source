@@ -9,7 +9,7 @@ import com.google.gwt.user.client.rpc.RemoteServiceRelativePath;
  * @author joymitro1989@gmail.com (Joydeep Mitra).
  */
 @RemoteServiceRelativePath(ServerLayout.CLOUD_DB_AUTH_SERVICE)
-public interface CloudDBAuthService extends RemoteService {
+public interface CloudDBAuthService extends RemoteService{
 
     String getToken();
 }

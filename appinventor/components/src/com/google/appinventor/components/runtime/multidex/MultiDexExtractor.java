@@ -38,6 +38,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
+
 import com.google.appinventor.components.runtime.util.IOUtils;
 
 /**
@@ -360,7 +361,6 @@ final class MultiDexExtractor {
         }
         return false;
     }
-
 
     // The following is taken from SharedPreferencesCompat to avoid having a dependency of the
     // multidex support library on another support library.

@@ -1,40 +1,84 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime;
 
-import android.content.Context;
-import android.content.Intent;
-import android.content.res.Resources;
-import android.net.Uri;
-import android.os.Build;
-import android.os.Environment;
-import android.os.Parcelable;
-import android.util.Log;
-import android.webkit.*;
-import android.widget.*;
-import com.google.appinventor.components.annotations.*;
+import android.Manifest;
+import android.graphics.Bitmap;
+import android.view.MotionEvent;
+import android.view.View;
+import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+
+import com.google.appinventor.components.annotations.DesignerComponent;
+import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.PropertyCategory;
+import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.annotations.SimpleFunction;
+import com.google.appinventor.components.annotations.SimpleObject;
+import com.google.appinventor.components.annotations.SimpleProperty;
+import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
-import com.google.appinventor.components.runtime.util.EclairUtil;
-import com.google.appinventor.components.runtime.util.SdkLevel;
-import android.view.MotionEvent;
-import android.view.View;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import java.io.IOException;
-import static android.app.Activity.RESULT_OK;
 
-import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.runtime.util.EclairUtil;
+import com.google.appinventor.components.runtime.util.FroyoUtil;
+import com.google.appinventor.components.runtime.util.FroyoWebViewClient;
+import com.google.appinventor.components.runtime.util.HoneycombWebViewClient;
+import com.google.appinventor.components.runtime.util.MediaUtil;
+import com.google.appinventor.components.runtime.util.SdkLevel;
+
 
 /**
+ * Component for viewing Web pages.
+ *
+ * ![WebViewer icon](images/webviewer.png)
+ *
+ * The {@link #HomeUrl()} can be specified in the Designer or in the Blocks Editor. The view can be
+ * set to follow links when they are tapped, and users can fill in Web forms.
+ *
+ * **Warning:** This is not a full browser. For example, pressing the phone's hardware Back key
+ * will exit the app, rather than move back in the browser history.
+ *
+ * You can use the {@link #WebViewString(String)} property to communicate between your app and
+ * Javascript code running in the `WebViewer` page. In the app, you get and set
+ * {@link #WebViewString(String)}. In the `WebViewer`, you include Javascript that references the
+ * `window.AppInventor` object, using the methods `getWebViewString()` and `setWebViewString(text)`.
+ *
+ * For example, if the `WebViewer` opens to a page that contains the Javascript command
+ * ```javascript
+ * document.write("The answer is" + window.AppInventor.getWebViewString());
+ * ```
+ * and if you set {@link #WebViewString(String)} to "hello", then the web page will show
+ * ```
+ * The answer is hello.
+ * ```
+ * And if the Web page contains Javascript that executes the command
+ * ```javascript
+ * windowAppInventor.setWebViewString("hello from Javascript"),
+ * ```
+ * then the value of the {@link #WebViewString()} property will be
+ * ```
+ * hello from Javascript.
+ * ```
+ * Calling `setWebViewString` from JavaScript will also run the {@link #WebViewStringChange(String)}
+ * event so that the blocks can handle when the {@link #WebViewString(String)} property changes.
+ *
+ * Beginning with release nb184a, you can specify a HomeUrl beginning with `http://localhost/`
+ * to reference assets both in the Companion and in compiled apps. Previously, apps needed to use
+ * `file:///android_asset/` in compiled apps and `/sdcard/AppInventor/assets/` in the Companion.
+ * Both of these options will continue to work but the `http://localhost/` approach will work in
+ * both scenarios. You may also use "file:///appinventor_asset/" which provides more security by
+ * preventing the use of asynchronous requests from JavaScript in your assets from going out to the
+ * web.
+ *
+ * @internaldoc
  * Component for displaying web pages
  * This is a very limited form of browser.  You can view web pages and
  * click on links. It also handles  Javascript. There are lots of things that could be added,
@@ -45,810 +89,572 @@ import com.google.appinventor.components.annotations.SimpleEvent;
  */
 
 @DesignerComponent(version = YaVersion.WEBVIEWER_COMPONENT_VERSION,
-        category = ComponentCategory.USERINTERFACE,
-        description = "Component for viewing Web pages.  The Home URL can be " +
-                "specified in the Designer or in the Blocks Editor.  The view can be set " +
-                "to follow links when they are tapped, and users can fill in Web forms. " +
-                "Warning: This is not a full browser.  For example, pressing the phone's " +
-                "hardware Back key will exit the app, rather than move back in the " +
-                "browser history." +
-                "<p />You can use the WebViewer.WebViewString property to communicate " +
-                "between your app and Javascript code running in the Webviewer page. " +
-                "In the app, you get and set WebViewString.  " +
-                "In the WebViewer, you include Javascript that references the window.AppInventor " +
-                "object, using the methoods </em getWebViewString()</em> and <em>setWebViewString(text)</em>.  " +
-                "<p />For example, if the WebViewer opens to a page that contains the Javascript command " +
-                "<br /> <em>document.write(\"The answer is\" + window.AppInventor.getWebViewString());</em> " +
-                "<br />and if you set WebView.WebVewString to \"hello\", then the web page will show " +
-                "</br ><em>The answer is hello</em>.  " +
-                "<br />And if the Web page contains Javascript that executes the command " +
-                "<br /><em>window.AppInventor.setWebViewString(\"hello from Javascript\")</em>, " +
-                "<br />then the value of the WebViewString property will be " +
-                "<br /><em>hello from Javascript</em>. ")
+    category = ComponentCategory.USERINTERFACE,
+    description = "Component for viewing Web pages.  The Home URL can be " +
+        "specified in the Designer or in the Blocks Editor.  The view can be set " +
+        "to follow links when they are tapped, and users can fill in Web forms. " +
+        "Warning: This is not a full browser.  For example, pressing the phone's " +
+        "hardware Back key will exit the app, rather than move back in the " +
+        "browser history." +
+        "<p />You can use the WebViewer.WebViewString property to communicate " +
+        "between your app and Javascript code running in the Webviewer page. " +
+        "In the app, you get and set WebViewString.  " +
+        "In the WebViewer, you include Javascript that references the window.AppInventor " +
+        "object, using the methoods </em getWebViewString()</em> and <em>setWebViewString(text)</em>.  " +
+        "<p />For example, if the WebViewer opens to a page that contains the Javascript command " +
+        "<br /> <em>document.write(\"The answer is\" + window.AppInventor.getWebViewString());</em> " +
+        "<br />and if you set WebView.WebVewString to \"hello\", then the web page will show " +
+        "</br ><em>The answer is hello</em>.  " +
+        "<br />And if the Web page contains Javascript that executes the command " +
+        "<br /><em>window.AppInventor.setWebViewString(\"hello from Javascript\")</em>, " +
+        "<br />then the value of the WebViewString property will be " +
+        "<br /><em>hello from Javascript</em>. ")
 
 // TODO(halabelson): Integrate control of the Back key, when we provide it
 
 @SimpleObject
 @UsesPermissions(permissionNames = "android.permission.INTERNET")
-public final class WebViewer extends AndroidViewComponent implements ActivityResultListener {
-    private final String LOG_TAG = "WebViewer"; //WebVewier
+public final class WebViewer extends AndroidViewComponent {
 
-    private static int resultcode = 0;
-    private final WebView webview;
-  private android.widget.ProgressBar progressBar;
+  private final WebView webview;
 
-    //Pictures will be stored into SD Pictures/AppyBuilder folder
-    final String PICTURE_FOLDER="AppyBuilder";
+  // URL for the WebViewer to load initially
+  private String homeUrl;
 
-    // URL for the WebViewer to load initially
-    private String homeUrl;
+  // whether or not to follow links when they are tapped
+  private boolean followLinks = true;
 
-    // whether or not to follow links when they are tapped
-    private boolean followLinks = true;
+  // Whether or not to prompt for permission in the WebViewer
+  private boolean prompt = true;
 
-    // Whether or not to prompt for permission in the WebViewer
-    private boolean prompt = true;
+  // ignore SSL Errors (mostly certificate errors. When set
+  // self signed certificates should work.
 
-    // ignore SSL Errors (mostly certificate errors. When set
-    // self signed certificates should work.
+  private boolean ignoreSslErrors = false;
 
-    private boolean ignoreSslErrors = false;
+  // allows passing strings to javascript
+  WebViewInterface wvInterface;
 
-    // allows passing strings to javascript
-    WebViewInterface wvInterface;
-    private Resources resources;
+  // Flag to mark whether we have received permission to read external storage
+  private boolean havePermission = false;
 
-    private boolean zoomEnabled = true;
-    // the same for Android 5.0 methods only
-    private ValueCallback<Uri[]> mFilePathCallback;
-    private String mCameraPhotoPath;
-    private Uri mCapturedImageURI = null;
-    private ValueCallback<Uri> mUploadMessage;
-    private boolean cameraEnabled=false;
-    private boolean useExternalBrowser=false;
+  /**
+   * Creates a new WebViewer component.
+   *
+   * @param container  container the component will be placed in
+   */
+  public WebViewer(ComponentContainer container) {
+    super(container);
 
-    /**
-     * Creates a new WebViewer component.
-     *
-     * @param container container the component will be placed in
-     */
-    public WebViewer(ComponentContainer container) {
-        super(container);
-
-        // Let's display the progress in the activity title bar, like the browser app does.
-        // Call it BEFORE setting the webviwer to context
-//        container.$form().getWindow().requestFeature(Window.FEATURE_PROGRESS);
-
-//            Context applicationContext = container.$form().getApplicationContext();
-//    resources = container.$form().getResources(); // do this only one time at initial constructor
-//    LayoutInflater mInflater = (LayoutInflater) applicationContext.getSystemService(Activity.LAYOUT_INFLATER_SERVICE);
-//    int myLayout = resources.getIdentifier("lvimageview", "layout", applicationContext.getPackageName());
-//
-//    View convertView = mInflater.inflate(myLayout, null);
-//        progressBar = (android.widget.ProgressBar) convertView.findViewById(resources.getIdentifier("progressBar", "id", applicationContext.getPackageName()));
-//        webview = (WebView) convertView.findViewById(resources.getIdentifier("webView1", "id", applicationContext.getPackageName()));
-
-        UseExternalBrowser(useExternalBrowser);
-
-        webview = new WebView(container.$context());
-        webview.getSettings().setAllowFileAccess(true);
-
-        resetWebViewClient();       // Set up the web view client
-        webview.getSettings().setJavaScriptEnabled(true);
-        webview.setFocusable(true);
-        // adds a way to send strings to the javascript
-        wvInterface = new WebViewInterface(webview.getContext());
-        webview.addJavascriptInterface(wvInterface, "AppInventor");
-
-        // enable pinch zooming and zoom controls
-        webview.getSettings().setBuiltInZoomControls(true);
+    webview = new WebView(container.$context());
+    resetWebViewClient();       // Set up the web view client
+    webview.getSettings().setJavaScriptEnabled(true);
+    webview.setFocusable(true);
+    // adds a way to send strings to the javascript
+    wvInterface = new WebViewInterface();
+    webview.addJavascriptInterface(wvInterface, "AppInventor");
+    // enable pinch zooming and zoom controls
+    webview.getSettings().setBuiltInZoomControls(true);
 
     if (SdkLevel.getLevel() >= SdkLevel.LEVEL_ECLAIR)
       EclairUtil.setupWebViewGeoLoc(this, webview, container.$context());
 
-        container.$add(this);
+    container.$add(this);
 
-        AllowCamera(false);
-
-        webview.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                    case MotionEvent.ACTION_UP:
-                        if (!v.hasFocus()) {
-                            v.requestFocus();
-                        }
-                        break;
-                }
-                return false;
+    webview.setOnTouchListener(new View.OnTouchListener() {
+      @Override
+      public boolean onTouch(View v, MotionEvent event) {
+        switch (event.getAction()) {
+          case MotionEvent.ACTION_DOWN:
+          case MotionEvent.ACTION_UP:
+            if (!v.hasFocus()) {
+              v.requestFocus();
             }
-        });
-
-        // set the initial default properties.  Height and Width
-        // will be fill-parent, which will be the default for the web viewer.
-
-        HomeUrl("");
-        Width(LENGTH_FILL_PARENT);
-        Height(LENGTH_FILL_PARENT);
-
-    }
-
-    private void resetWebView() {
-//    Context applicationContext = container.$form().getApplicationContext();
-//    resources = applicationContext.getResources(); // do this only one time at initial constructor
-//    LayoutInflater mInflater = (LayoutInflater) applicationContext.getSystemService(Activity.LAYOUT_INFLATER_SERVICE);
-//    int myLayout = resources.getIdentifier("lvimageview", "layout", applicationContext.getPackageName());
-//
-//    View convertView = mInflater.inflate(myLayout, null);
-//    progressBar = (ProgressBar) convertView.findViewById(resources.getIdentifier("progressBar", "id", applicationContext.getPackageName()));
-//    webview = (WebView) convertView.findViewById(resources.getIdentifier("webView1", "id", applicationContext.getPackageName()));
-        setupClient();
-        //todo: set h,w of both progressBar and webview to user-selected
-        // set the initial default properties.  Height and Width
-        // will be fill-parent, which will be the default for the web viewer.
-    }
-
-    private void setupClient() {
-        Log.d(LOG_TAG, "setupClient invoked");
-        webview.setWebViewClient(new MyAppWebViewClient());
-
-        webview.setWebChromeClient(new WebChromeClient() {
-
-            // page loading progress, gone when fully loaded
-            public void onProgressChanged(WebView view, int progress) {
-       /* if (progress < 100 && progressBar.getVisibility() == ProgressBar.GONE) {
-          progressBar.setVisibility(ProgressBar.VISIBLE);
+            break;
         }
-        progressBar.setProgress(progress);
-        if (progress == 100) {
-          progressBar.setVisibility(ProgressBar.GONE);
-        }*/
-                // Activities and WebViews measure progress with different scales.
-                // The progress meter will automatically disappear when we reach 100%
-//                container.$form().setProgress(progress * 1000);
-            }
+        return false;
+      }
+    });
 
-            // for Lollipop, all in one
-            public boolean onShowFileChooser(
-                    WebView webView, ValueCallback<Uri[]> filePathCallback,
-                    WebChromeClient.FileChooserParams fileChooserParams) {
-//                Log.d(LOG_TAG, "onShowFileChooser invoked 1");
+    // set the initial default properties.  Height and Width
+    // will be fill-parent, which will be the default for the web viewer.
 
-                if (mFilePathCallback != null) {
-                    mFilePathCallback.onReceiveValue(null);
-                }
-                mFilePathCallback = filePathCallback;
+    HomeUrl("");
+    Width(LENGTH_FILL_PARENT);
+    Height(LENGTH_FILL_PARENT);
+  }
 
-                Intent takePictureIntent = null;
+  /**
+   * Gets the `WebView`'s String, which is viewable through Javascript in the `WebView` as the
+   * `window.AppInventor` object.
+   *
+   * @return string
+   */
+  @SimpleProperty(description = "Gets the WebView's String, which is viewable through " +
+      "Javascript in the WebView as the window.AppInventor object",
+      category = PropertyCategory.BEHAVIOR)
+  public String WebViewString() {
+    return wvInterface.getWebViewString();
+  }
 
-                if (cameraEnabled) {
-                    takePictureIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-                    if (takePictureIntent.resolveActivity(container.$form().getPackageManager()) != null) {
+  /**
+   * Sets the web view string
+   *
+   * @suppressdoc
+   */
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR)
+  public void WebViewString(String newString) {
+    wvInterface.setWebViewStringFromBlocks(newString);
+  }
 
-                        // create the file where the photo should go
-                        java.io.File photoFile = null;
-                        try {
-                            photoFile = createImageFile();
-                            takePictureIntent.putExtra("PhotoPath", mCameraPhotoPath);
-                        } catch (IOException ex) {
-                            // Error occurred while creating the File
-                            Log.e(LOG_TAG, "Unable to create Image File", ex);
-                        }
+  @Override
+  public View getView() {
+    return webview;
+  }
 
-                        // continue only if the file was successfully created
-                        if (photoFile != null) {
-                            mCameraPhotoPath = "file:" + photoFile.getAbsolutePath();
-                            takePictureIntent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT,
-                                    Uri.fromFile(photoFile));
-                        } else {
-                            takePictureIntent = null;
-                        }
-                    }
-                }
-
-                Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
-                contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
-                contentSelectionIntent.setType("image/*");
-
-                Intent[] intentArray;
-                if (takePictureIntent != null) {
-                    intentArray = new Intent[]{takePictureIntent};
-                } else {
-                    intentArray = new Intent[0];
-                }
-
-                Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
-                chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
-                chooserIntent.putExtra(Intent.EXTRA_TITLE, "File Chooser");
-                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
-
-                container.$context().startActivityForResult(chooserIntent, getResultCode());
-
-                return true;
-            }
-
-            // creating image files (Lollipop only)
-            private java.io.File createImageFile() throws IOException {
-//                Log.d(LOG_TAG, "createImageFile invoked 1");
-
-                //NOTE: Camera files will be created in Pictures/AppyBuilder folder
-                java.io.File imageStorageDir = new java.io.File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), PICTURE_FOLDER);
-
-                if (!imageStorageDir.exists()) {
-                    imageStorageDir.mkdirs();
-                }
-
-                // create an image file name
-                imageStorageDir = new java.io.File(imageStorageDir + java.io.File.separator + "IMG_" + String.valueOf(System.currentTimeMillis()) + ".jpg");
-                return imageStorageDir;
-            }
-
-            // openFileChooser for Android 3.0+
-            public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType) {
-//                Log.d(LOG_TAG, "openFileChooser invoked 21");
-                mUploadMessage = uploadMsg;
-
-                try {
-                    java.io.File imageStorageDir = new java.io.File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), PICTURE_FOLDER);
-
-                    if (!imageStorageDir.exists()) {
-                        imageStorageDir.mkdirs();
-                    }
-
-                    java.io.File file = new java.io.File(imageStorageDir + java.io.File.separator + "IMG_" + String.valueOf(System.currentTimeMillis()) + ".jpg");
-
-                    mCapturedImageURI = Uri.fromFile(file); // save to the private variable
-
-                    final Intent captureIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
-                    captureIntent.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, mCapturedImageURI);
-                    // captureIntent.putExtra(MediaStore.EXTRA_SCREEN_ORIENTATION, ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-
-                    Intent i = new Intent(Intent.ACTION_GET_CONTENT);
-                    i.addCategory(Intent.CATEGORY_OPENABLE);
-                    i.setType("image/*");
-
-                    Intent chooserIntent = Intent.createChooser(i, "File Chooser");
-                    chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Parcelable[]{captureIntent});
-
-                    container.$context().startActivityForResult(chooserIntent, getResultCode());
-                } catch (Exception e) {
-                    Toast.makeText(container.$context(), "Camera Exception:" + e, Toast.LENGTH_LONG).show();
-                }
-
-            }
-
-            // openFileChooser for Android < 3.0
-            public void openFileChooser(ValueCallback<Uri> uploadMsg) {
-                openFileChooser(uploadMsg, "");
-            }
-
-            // openFileChooser for other Android versions
-            /* may not work on KitKat due to lack of implementation of openFileChooser() or onShowFileChooser()
-               https://code.google.com/p/android/issues/detail?id=62220
-               however newer versions of KitKat fixed it on some devices */
-            public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture) {
-                openFileChooser(uploadMsg, acceptType);
-            }
-
-        });
-
-    }
-
-    // return here when file selected from camera or from SD Card
+  // Create a class so we can override the default link following behavior.
+  // The handler doesn't do anything on its own.  But returning true means that
+  // this do nothing will override the default WebView behavior.  Returning
+  // false means to let the WebView handle the Url.  In other words, returning
+  // true will not follow the link, and returning false will follow the link.
+  private class WebViewerClient extends WebViewClient {
     @Override
-    public void resultReturned(int requestCode, int resultCode, Intent data) {
-        Log.d(LOG_TAG, "resultReturned invoked 1: resultCode:" + resultCode);
-
-        // code for all versions except of Lollipop
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-
-            if (requestCode == getResultCode()) {
-                if (null == this.mUploadMessage) {
-                    return;
-                }
-
-                Uri result = null;
-
-                try {
-                    if (resultCode != RESULT_OK) {
-                        result = null;
-                    } else {
-                        // retrieve from the private variable if the intent is null
-                        result = data == null ? mCapturedImageURI : data.getData();
-                    }
-                } catch (Exception e) {
-                    Toast.makeText(container.$context(), "activity :" + e, Toast.LENGTH_LONG).show();
-                }
-
-                mUploadMessage.onReceiveValue(result);
-                mUploadMessage = null;
-            }
-
-        } // end of code for all versions except of Lollipop
-
-        // start of code for Lollipop only
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-
-            if (requestCode != resultcode || mFilePathCallback == null) {
-                container.$form().onActivityResult(requestCode, resultCode, data);
-                return;
-            }
-
-            Uri[] results = null;
-
-            // check that the response is a good one
-            if (resultCode == RESULT_OK) {
-                if (data == null || data.getData() == null) {
-                    // if there is not data, then we may have taken a photo
-                    if (mCameraPhotoPath != null) {
-                        results = new Uri[]{Uri.parse(mCameraPhotoPath)};
-                    }
-                } else {
-                    String dataString = data.getDataString();
-                    if (dataString != null) {
-                        results = new Uri[]{Uri.parse(dataString)};
-                    }
-                }
-            }
-
-            mFilePathCallback.onReceiveValue(results);
-            mFilePathCallback = null;
-
-        } // end of code for Lollipop only
-
+    public boolean shouldOverrideUrlLoading(WebView view, String url) {
+      return !followLinks;
     }
 
-    private int getResultCode() {
-        if (resultcode == 0) {
-            resultcode = container.$form().registerForActivityResult(this);
+    @Override
+    public void onPageStarted(WebView view, String url, Bitmap favicon) {
+      BeforePageLoad(url);
+    }
+
+    @Override
+    public void onPageFinished(WebView view, String url) {
+      PageLoaded(url);
+    }
+
+    @Override
+    public void onReceivedError(WebView view, final int errorCode, final String description, final String failingUrl) {
+      container.$form().runOnUiThread(new Runnable() {
+        public void run() {
+          ErrorOccurred(errorCode, description, failingUrl);
         }
-        return resultcode;
+      });
     }
+  }
+
+  // Components don't normally override Width and Height, but we do it here so that
+  // the automatic width and height will be fill parent.
+
+  /**
+   * Specifies the horizontal width of the `%type%`, measured in pixels.
+   * @param  width in pixels
+   */
+  @Override
+  @SimpleProperty()
+  public void Width(int width) {
+    if (width == LENGTH_PREFERRED) {
+      width = LENGTH_FILL_PARENT;
+    }
+    super.Width(width);
+  }
+
+  /**
+   * Specifies the `%type%`'s vertical height, measured in pixels.
+   * @param  height in pixels
+   */
+  @Override
+  @SimpleProperty()
+  public void Height(int height) {
+    if (height == LENGTH_PREFERRED) {
+      height = LENGTH_FILL_PARENT;
+    }
+    super.Height(height);
+  }
+
+
+  /**
+   * Returns the URL of the page the WebVewier should load
+   *
+   * @return URL of the page the WebVewier should load
+   */
+  @SimpleProperty(
+      description = "URL of the page the WebViewer should initially open to.  " +
+          "Setting this will load the page.",
+      category = PropertyCategory.BEHAVIOR)
+  public String HomeUrl() {
+    return homeUrl;
+  }
+
+  /**
+   * Specifies the URL of the page the `WebViewer` should initially open to. Setting this will
+   * load the page.
+   *
+   * @param url URL of the page the WebVewier should load
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING,
+      defaultValue = "")
+  @SimpleProperty()
+  public void HomeUrl(String url) {
+    homeUrl = url;
+    // clear the history, since changing Home is a kind of reset
+    webview.clearHistory();
+    loadUrl("HomeUrl", homeUrl);
+  }
+
+  /**
+   * Returns the URL currently being viewed. This could be different from the {@link #HomeUrl()}
+   * if new pages were visited by following links.
+   *
+   * @return URL of the page being viewed
+   */
+  @SimpleProperty(
+      description = "URL of the page currently viewed.   This could be different from the " +
+          "Home URL if new pages were visited by following links.",
+      category = PropertyCategory.BEHAVIOR)
+  public String CurrentUrl() {
+    return (webview.getUrl() == null) ? "" : webview.getUrl();
+  }
+
+  /**
+   * Returns the title of the page currently being viewed
+   *
+   * @return title of the page being viewed
+   */
+  @SimpleProperty(
+      description = "Title of the page currently viewed",
+      category = PropertyCategory.BEHAVIOR)
+  public String CurrentPageTitle() {
+    return (webview.getTitle() == null) ? "" : webview.getTitle();
+  }
+
+
+  /** Indicates whether to follow links when they are tapped in the WebViewer
+   * @return true or false
+   */
+  @SimpleProperty(
+      description = "Determines whether to follow links when they are tapped in the WebViewer.  " +
+          "If you follow links, you can use GoBack and GoForward to navigate the browser history. ",
+      category = PropertyCategory.BEHAVIOR)
+  public boolean FollowLinks() {
+    return followLinks;
+  }
+
+
+  /**
+   * Determines whether to follow links when they are tapped in the `WebViewer`. If you follow
+   * links, you can use {@link #GoBack()} and {@link #GoForward()} to navigate the browser history.
+   * @param follow
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+      defaultValue = "True")
+  @SimpleProperty()
+  public void FollowLinks(boolean follow) {
+    followLinks = follow;
+    resetWebViewClient();
+  }
+
+  /**
+   * Determine whether or not to ignore SSL errors. Set to `true`{:.logic.block} to ignore errors.
+   * Use this to accept self signed certificates from websites.
+   *
+   * @return true or false
+   *
+   */
+  @SimpleProperty(
+      description = "Determine whether or not to ignore SSL errors. Set to true to ignore " +
+          "errors. Use this to accept self signed certificates from websites.",
+      category = PropertyCategory.BEHAVIOR)
+  public boolean IgnoreSslErrors() {
+    return ignoreSslErrors;
+  }
+
+  /**
+   * Determines whether or not to ignore SSL Errors
+   *
+   * @suppressdoc
+   * @param ignoreSslErrors set to true to ignore SSL errors
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+      defaultValue = "False")
+  @SimpleProperty()
+  public void IgnoreSslErrors(boolean ignoreSslErrors) {
+    this.ignoreSslErrors = ignoreSslErrors;
+    resetWebViewClient();
+  }
+
+  /**
+   * Loads the  page from the home URL.  This happens automatically when
+   * home URL is changed.
+   */
+  @SimpleFunction(
+      description = "Loads the home URL page.  This happens automatically when " +
+          "the home URL is changed.")
+  public void GoHome() {
+    loadUrl("GoHome", homeUrl);
+  }
+
+  /**
+   * Go back to the previous page in the history list. Does nothing if there is no previous page.
+   */
+  @SimpleFunction(
+      description = "Go back to the previous page in the history list.  " +
+          "Does nothing if there is no previous page.")
+  public void GoBack() {
+    if (webview.canGoBack()) {
+      webview.goBack();
+    }
+  }
+
+  /**
+   * Go forward to the next page in the history list. Does nothing if there is no next page.
+   */
+  @SimpleFunction(
+      description = "Go forward to the next page in the history list.   " +
+          "Does nothing if there is no next page.")
+  public void GoForward() {
+    if (webview.canGoForward()) {
+      webview.goForward();
+    }
+  }
+
+  /**
+   *  @return true if the WebViewer can go forward in the history list
+   */
+  @SimpleFunction(
+      description = "Returns true if the WebViewer can go forward in the history list.")
+  public boolean CanGoForward() {
+    return webview.canGoForward();
+  }
+
+
+  /**
+   *  @return true if the WebViewer can go back in the history list
+   */
+  @SimpleFunction(
+      description = "Returns true if the WebViewer can go back in the history list.")
+  public boolean CanGoBack() {
+    return webview.canGoBack();
+  }
+
+
+  /**
+   * Load the page at the given URL.
+   */
+  @SimpleFunction(
+      description = "Load the page at the given URL.")
+  public void GoToUrl(String url) {
+    loadUrl("GoToUrl", url);
+  }
+
+  /**
+   * Stop loading a page.
+   */
+  @SimpleFunction(
+      description = "Stop loading a page.")
+  public void StopLoading() {
+    webview.stopLoading();
+  }
+
+  /**
+   * Reload the current page.
+   */
+  @SimpleFunction(
+      description = "Reload the current page.")
+  public void Reload() {
+    webview.reload();
+  }
+
+  /**
+   * Specifies whether or not this `WebViewer` can access the JavaScript
+   * geolocation API.
+   *
+   * @param uses -- Whether or not the API is available
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+      defaultValue = "False")
+  @SimpleProperty(userVisible = false,
+      description = "Whether or not to give the application permission to use the Javascript geolocation API. " +
+          "This property is available only in the designer.")
+  public void UsesLocation(boolean uses) {
+    // We don't actually do anything here (the work is in the MockWebViewer)
+  }
+
+  /**
+   * Determine if the user should be prompted for permission to use the geolocation API while in
+   * the webviewer.
+   *
+   * @return true if prompting is  required.  False assumes permission is granted.
+   */
+
+  @SimpleProperty(description = "If True, then prompt the user of the WebView to give permission to access the geolocation API. " +
+      "If False, then assume permission is granted.")
+  public boolean PromptforPermission() {
+    return prompt;
+  }
+
+  /**
+   * Determine if the user should be prompted for permission to use the geolocation API while in
+   * the `WebViewer`. If `true`{:.logic.block}, prompt the user of the `WebViewer` to give
+   * permission to access the geolocation API. If `false`{:.logic.block}, assume permission is
+   * granted.
+   *
+   * @param prompt set to true to require prompting. False assumes permission is granted.
+   */
+
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+      defaultValue = "True")
+  @SimpleProperty(userVisible = true)
+  public void PromptforPermission(boolean prompt) {
+    this.prompt = prompt;
+  }
+
+  /**
+   * Clear Stored Location permissions. When the geolocation API is used in
+   * the `WebViewer`, the end user is prompted on a per URL basis for whether
+   * or not permission should be granted to access their location. This
+   * function clears this information for all locations.
+   *
+   *  As the permissions interface is not available on phones older then
+   *  Eclair, this function is a no-op on older phones.
+   */
+  @SimpleFunction(description = "Clear stored location permissions.")
+  public void ClearLocations() {
+    if (SdkLevel.getLevel() >= SdkLevel.LEVEL_ECLAIR)
+      EclairUtil.clearWebViewGeoLoc();
+  }
+
+  private void resetWebViewClient() {
+    if (SdkLevel.getLevel() >= SdkLevel.LEVEL_HONEYCOMB) {
+      webview.setWebViewClient(new HoneycombWebViewClient(followLinks, ignoreSslErrors,
+          container.$form(), this));
+    } else if (SdkLevel.getLevel() >= SdkLevel.LEVEL_FROYO) {
+      webview.setWebViewClient(new FroyoWebViewClient<>(followLinks, ignoreSslErrors,
+          container.$form(), this));
+    } else {
+      webview.setWebViewClient(new WebViewerClient());
+    }
+  }
+
+  /**
+   * Clear the internal webview cache, both ram and disk. This is useful
+   * when using the `WebViewer` to poll a page that may not be sending
+   * appropriate cache control headers.
+   */
+  @SimpleFunction(description = "Clear WebView caches.")
+  public void ClearCaches() {
+    webview.clearCache(true);
+  }
+
+   /**
+   * Clear the webview's cookies. This is useful if you want to
+   * sign the user out of a website that uses them to store logins.
+   */
+  @SimpleFunction(description = "Clear WebView cookies.")
+  public void ClearCookies() {
+    CookieManager cookieManager = CookieManager.getInstance();
+    if (SdkLevel.getLevel() >= SdkLevel.LEVEL_LOLLIPOP) {
+      cookieManager.removeAllCookies(null);
+    } else {
+      cookieManager.removeAllCookie();
+    }
+  }
+
+   /**
+   * Run JavaScript in the current page.
+   */
+  @SimpleFunction(description = "Run JavaScript in the current page.")
+  public void RunJavaScript(String js) {
+    // evaluateJavascript() was added in API 19
+    // and is therefore not used here for compatibility purposes.
+    webview.loadUrl("javascript:(function(){" + js + "})()");
+  }
+
+  /**
+   * Event that runs when the `AppInventor.setWebViewString` method is called from JavaScript.
+   * The new {@link #WebViewString()} is given by the `value`{:.variable.block} parameter.
+   * @param value
+   */
+  @SimpleEvent(description = "When the JavaScript calls AppInventor.setWebViewString this event is run.")
+  public void WebViewStringChange(String value) {
+    EventDispatcher.dispatchEvent(this, "WebViewStringChange", value);
+  }
+
+  @SimpleEvent(description = "When a page is about to load this event is run.")
+  public void BeforePageLoad(String url) {
+    EventDispatcher.dispatchEvent(this, "BeforePageLoad", url);
+  }
+
+  @SimpleEvent(description = "When a page is finished loading this event is run.")
+  public void PageLoaded(String url) {
+    EventDispatcher.dispatchEvent(this, "PageLoaded", url);
+  }
+
+  @SimpleEvent(description = "When an error occurs this event is run.")
+  public void ErrorOccurred(int errorCode, String description, String failingUrl) {
+    EventDispatcher.dispatchEvent(this, "ErrorOccurred", errorCode, description, failingUrl);
+  }
+
+  private void loadUrl(final String caller, final String url) {
+    if (!havePermission && MediaUtil.isExternalFileUrl(container.$form(), url)) {
+      container.$form().askPermission(Manifest.permission.READ_EXTERNAL_STORAGE,
+          new PermissionResultHandler() {
+            @Override
+            public void HandlePermissionResponse(String permission, boolean granted) {
+              if (granted) {
+                havePermission = true;
+                webview.loadUrl(url);
+              } else {
+                container.$form().dispatchPermissionDeniedEvent(WebViewer.this, caller,
+                    Manifest.permission.READ_EXTERNAL_STORAGE);
+              }
+            }
+          });
+      return;
+    }
+    webview.loadUrl(url);
+  }
+
+  /**
+   * Allows the setting of properties to be monitored from the javascript
+   * in the WebView
+   */
+  public class WebViewInterface {
+    String webViewString;
+
+    /** Instantiate the interface */
+    WebViewInterface() {
+      webViewString = " ";
+    }
+
     /**
      * Gets the web view string
      *
      * @return string
      */
-    @SimpleProperty(description = "Gets the WebView's String, which is viewable through " +
-            "Javascript in the WebView as the window.AppInventor object",
-            category = PropertyCategory.BEHAVIOR)
-    public String WebViewString() {
-        return wvInterface.getWebViewString();
+    @JavascriptInterface
+    public String getWebViewString() {
+      return webViewString;
     }
 
     /**
      * Sets the web view string
      */
-    @SimpleProperty(category = PropertyCategory.BEHAVIOR)
-    public void WebViewString(String newString) {
-        wvInterface.setWebViewString(newString);
-    }
+    @JavascriptInterface
+    public void setWebViewString(final String newString) {
+      webViewString = newString;
 
-    @Override
-    public View getView() {
-        return webview;
-    }
-
-
-    // Create a class so we can override the default link following behavior.
-    // The handler doesn't do anything on its own.  But returning true means that
-    // this do nothing will override the default WebVew behavior.  Returning
-    // false means to let the WebView handle the Url.  In other words, returning
-    // true will not follow the link, and returning false will follow the link.
-    private class WebViewerClient extends WebViewClient {
-        @Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            return !followLinks;
+      container.$form().runOnUiThread(new Runnable() {
+        public void run() {
+          WebViewStringChange(newString);
         }
+      });
     }
 
-    // Components don't normally override Width and Height, but we do it here so that
-    // the automatic width and height will be fill parent.
-    @Override
-    @SimpleProperty()
-    public void Width(int width) {
-        if (width == LENGTH_PREFERRED) {
-            width = LENGTH_FILL_PARENT;
-        }
-        super.Width(width);
+    public void setWebViewStringFromBlocks(final String newString) {
+      webViewString = newString;
     }
 
-    @Override
-    @SimpleProperty()
-    public void Height(int height) {
-        if (height == LENGTH_PREFERRED) {
-            height = LENGTH_FILL_PARENT;
-        }
-        super.Height(height);
-    }
-
-
-    /**
-     * Returns the URL of the page the WebVewier should load
-     *
-     * @return URL of the page the WebVewier should load
-     */
-    @SimpleProperty(
-            description = "URL of the page the WebViewer should initially open to.  " +
-                    "Setting this will load the page.",
-            category = PropertyCategory.BEHAVIOR)
-    public String HomeUrl() {
-        return homeUrl;
-    }
-
-    /**
-     * Specifies the URL of the page the WebVewier should load
-     *
-     * @param url URL of the page the WebVewier should load
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING,
-            defaultValue = "")
-    @SimpleProperty()
-    public void HomeUrl(String url) {
-        homeUrl = url;
-        // clear the history, since changing Home is a kind of reset
-    webview.clearHistory();
-    GoToUrl(homeUrl);
-//        webview.loadUrl(homeUrl);
-    }
-
-    /**
-     * Returns the URL currently being viewed
-     *
-     * @return URL of the page being viewed
-     */
-    @SimpleProperty(
-            description = "URL of the page currently viewed.   This could be different from the " +
-                    "Home URL if new pages were visited by following links.",
-            category = PropertyCategory.BEHAVIOR)
-    public String CurrentUrl() {
-        return (webview.getUrl() == null) ? "" : webview.getUrl();
-    }
-
-    /**
-     * Returns the title of the page currently being viewed
-     *
-     * @return title of the page being viewed
-     */
-    @SimpleProperty(
-            description = "Title of the page currently viewed",
-            category = PropertyCategory.BEHAVIOR)
-    public String CurrentPageTitle() {
-        return (webview.getTitle() == null) ? "" : webview.getTitle();
-    }
-
-
-  /** Indicates whether to follow links when they are tapped in the WebViewer
-     * @return true or false
-     */
-    @SimpleProperty(
-            description = "Determines whether to follow links when they are tapped in the WebViewer.  " +
-                    "If you follow links, you can use GoBack and GoForward to navigate the browser history. ",
-            category = PropertyCategory.BEHAVIOR)
-    public boolean FollowLinks() {
-        return followLinks;
-    }
-
-
-  /** Determines whether to follow links when they are tapped
-     *
-     * @param follow
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "True")
-    @SimpleProperty()
-    public void FollowLinks(boolean follow) {
-        followLinks = follow;
-    resetWebViewClient();
-    }
-
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
-    @SimpleProperty(description = "If set to True, then uses external browser, else uses internal browser")
-    public void UseExternalBrowser(boolean enabled) {
-        this.useExternalBrowser = enabled;
-        Log.d(LOG_TAG, "trying to set the useExternalBrowser to:" + useExternalBrowser);
-//        resetWebViewClient();
-    }
-
-    @SimpleProperty(
-            description = "Reports current value of UseExternalBrowser",
-            category = PropertyCategory.BEHAVIOR)
-    public boolean UseExternalBrowser() {
-        return useExternalBrowser;
-    }
-    /**
-     * Determines whether SSL Errors are ignored. Set to true to use self signed certificates
-     *
-     * @return true or false
-   *
-     */
-    @SimpleProperty(
-            description = "Determine whether or not to ignore SSL errors. Set to true to ignore " +
-                    "errors. Use this to accept self signed certificates from websites.",
-            category = PropertyCategory.BEHAVIOR)
-    public boolean IgnoreSslErrors() {
-        return ignoreSslErrors;
-    }
-
-    /**
-     * Determines whether or not to ignore SSL Errors
-     *
-     * @param ignoreSslErrors set to true to ignore SSL errors
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
-            defaultValue = "False")
-    @SimpleProperty()
-    public void IgnoreSslErrors(boolean ignoreSslErrors) {
-        this.ignoreSslErrors = ignoreSslErrors;
-    resetWebViewClient();
-    }
-
-    /**
-     * Loads the  page from the home URL.  This happens automatically when
-     * home URL is changed.
-     */
-    @SimpleFunction(
-            description = "Loads the home URL page.  This happens automatically when " +
-                    "the home URL is changed.")
-    public void GoHome() {
-        webview.loadUrl(homeUrl);
-    }
-
-    /**
-     * Go back to the previously viewed page.
-     */
-    @SimpleFunction(
-            description = "Go back to the previous page in the history list.  " +
-                    "Does nothing if there is no previous page.")
-    public void GoBack() {
-        if (webview.canGoBack()) {
-            webview.goBack();
-        }
-    }
-
-    /**
-     * Go forward in the history list
-     */
-    @SimpleFunction(
-            description = "Go forward to the next page in the history list.   " +
-                    "Does nothing if there is no next page.")
-    public void GoForward() {
-        if (webview.canGoForward()) {
-            webview.goForward();
-        }
-    }
-
-    /**
-     * @return true if the WebViewer can go forward in the history list
-     */
-    @SimpleFunction(
-            description = "Returns true if the WebViewer can go forward in the history list.")
-    public boolean CanGoForward() {
-        return webview.canGoForward();
-    }
-
-
-    /**
-     * @return true if the WebViewer can go back in the history list
-     */
-    @SimpleFunction(
-            description = "Returns true if the WebViewer can go back in the history list.")
-    public boolean CanGoBack() {
-        return webview.canGoBack();
-    }
-
-   @SimpleFunction(description = "Load complete static html in webviewer")
-   public void LoadHtml(String htmlContent) {
-        webview.loadData(htmlContent, "text/html", "UTF-8");
-    }
-
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
-    @SimpleProperty(description = "HTML can be used to upload files directly from device storage. If AllowCamer is enabled, " +
-            "then you can also take picture and upload the image. NOTE: For this, you'll require to add CAMERA component")
-    public void AllowCamera(boolean enabled) {
-        this.cameraEnabled = enabled;
-    }
-
-
-    /**
-     * Load the given URL
-     */
-    @SimpleFunction(description = "Load the page at the given URL.")
-    public void GoToUrl(String url) {
-        Log.d(LOG_TAG, "useExternalBrowser is set to:" + useExternalBrowser);
-        if (useExternalBrowser) {
-            Log.d(LOG_TAG, "Using external browser");
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-            container.$form().startActivity(intent);
-        } else {
-            Log.d(LOG_TAG, "NOT Using external browser");
-            webview.loadUrl(url);
-        }
-    }
-
-
-    /**
-     * Specifies whether or not this WebViewer can access the JavaScript
-     * Location API.
-     *
-     * @param uses -- Whether or not the API is available
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
-            defaultValue = "False")
-    @SimpleProperty(userVisible = false,
-            description = "Whether or not to give the application permission to use the Javascript geolocation API. " +
-                    "This property is available only in the designer.")
-    public void UsesLocation(boolean uses) {
-        // We don't actually do anything here (the work is in the MockWebViewer)
-    }
-
-    /**
-     * Determine if the user should be prompted for permission to use the geolocation API while in
-     * the webviewer.
-     *
-     * @return true if prompting is  required.  False assumes permission is granted.
-     */
-
-    @SimpleProperty(description = "If True, then prompt the user of the WebView to give permission to access the geolocation API. " +
-            "If False, then assume permission is granted.")
-    public boolean PromptforPermission() {
-        return prompt;
-    }
-
-    /**
-     * Determine if the user should be prompted for permission to use the geolocation API while in
-     * the webviewer.
-     *
-     * @param prompt set to true to require prompting. False assumes permission is granted.
-     */
-
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
-            defaultValue = "True")
-    @SimpleProperty(userVisible = true)
-    public void PromptforPermission(boolean prompt) {
-        this.prompt = prompt;
-    }
-
-    /**
-     * Clear Stored Location permissions. When the geolocation API is used in
-     * the WebViewer, the end user is prompted on a per URL basis for whether
-     * or not permission should be granted to access their location. This
-     * function clears this information for all locations.
-     * <p>
-     * As the permissions interface is not available on phones older then
-     * Eclair, this function is a no-op on older phones.
-     */
-
-    @SimpleFunction(description = "Clear stored location permissions.")
-    public void ClearLocations() {
-        if (SdkLevel.getLevel() >= SdkLevel.LEVEL_ECLAIR)
-            EclairUtil.clearWebViewGeoLoc();
-    }
-
-    private void resetWebViewClient() {
-        /*if (SdkLevel.getLevel() >= SdkLevel.LEVEL_FROYO) {
-            webview.setWebViewClient(FroyoUtil.getWebViewClient(ignoreSslErrors, followLinks, container.$form(), this));
-        } else {
-            webview.setWebViewClient(new WebViewerClient());
-        }*/
-
-        setupClient();
-    }
-
-    /**
-     * Clear the webview cache, both ram and disk. This is useful
-     * when using the webviewer to poll a page that may not be sending
-     * appropriate cache control headers. This is particularly useful
-     * when using the webviwer to look at a Fusion Table.
-     */
-
-    @SimpleFunction(description = "Clear WebView caches.")
-    public void ClearCaches() {
-        webview.clearCache(true);
-    }
-
-  @SimpleEvent(description = "When the JavaScript calls AppInventor.setWebViewString this event is run.")
-  public void WebViewStringChange() {
-    EventDispatcher.dispatchEvent(this, "WebViewStringChange");
   }
-
-    /**
-     * Specifies whether or not we want Zoom: If true add Zoom, if false removed the Zoom
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "True")
-    @SimpleProperty(description = "Enables or disables the ability to have zoom on page")
-    public void ZoomEnabled(boolean enabled) {
-        this.zoomEnabled = enabled;
-        webview.getSettings().setBuiltInZoomControls(enabled);
-    }
-
-    @SimpleProperty(description = "Enables or disables the ability to have zoom on page", category = PropertyCategory.BEHAVIOR)
-    public boolean ZoomEnabled() {
-        return this.zoomEnabled;
-    }
-
-    /**
-     * Allows the setting of properties to be monitored from the javascript
-     * in the WebView
-     */
-    public class WebViewInterface {
-        Context mContext;
-        String webViewString;
-
-    /** Instantiate the interface and set the context */
-        WebViewInterface(Context c) {
-            mContext = c;
-            webViewString = " ";
-        }
-
-        /**
-         * Gets the web view string
-         *
-         * @return string
-         */
-        @JavascriptInterface
-        public String getWebViewString() {
-            return webViewString;
-        }
-
-        /**
-         * Sets the web view string
-         */
-        @JavascriptInterface
-        public void setWebViewString(String newString) {
-            webViewString = newString;
-        container.$form().runOnUiThread(new Runnable() {
-            public void run() {
-              WebViewStringChange();
-            }
-          });
-        }
-
-    }
-
-    private class MyAppWebViewClient extends WebViewClient {
-
-        private static final String LOG_TAG = "MyAppWebViewClient";
-
-        // variable for onReceivedError
-        private boolean refreshed;
-
-        // handling external links as intents
-        @Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            Log.d(LOG_TAG, "shouldOverrideUrlLoading: " + url);
-            return !followLinks;
-//
-//            String host = Uri.parse(url).getHost();
-//            if( host.endsWith("facebook.com") ) {
-//                Log.d(LOG_TAG, "fb called returning: " + url);
-//                return false;
-//            }
-//
-//            Log.d(LOG_TAG, "url OTHER than fb: " + url);
-////            return !followLinks;
-//            try {
-//                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-//                view.getContext().startActivity(intent);
-//            } catch (Exception e) {
-//                Log.d(LOG_TAG, "Unable to create Image File: " + e.getMessage());
-//            }
-//
-//            // Returning false means to let the WebView handle the Url.
-////            return false;
-//            return !followLinks;
-        }
-
-        // refresh on connection error (sometimes there is an error even when there is a network connection)
-        @Override
-        public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-            if(!refreshed) {
-                view.loadUrl(failingUrl);
-                // when network error is real do not reload url again
-                refreshed = true;
-            }
-        }
-
-    }
 }
 

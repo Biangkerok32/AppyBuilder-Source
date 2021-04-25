@@ -17,10 +17,10 @@ import android.telephony.PhoneNumberUtils;
  */
 public final class LollipopUtil {
 
-    private LollipopUtil() {
-    }
+  private LollipopUtil() {
+  }
 
-    /**
+  /**
    * Format a phone number based on the number's country code, falling
    * back to the format defined by the user's current locale. This is
    * to replace calling {@link PhoneNumberUtils#formatNumber(String)},
@@ -31,7 +31,7 @@ public final class LollipopUtil {
    * @return The phone number, formatted based on the country code or
    * user's locale.
    */
-    public static String formatNumber(String number) {
-        return PhoneNumberUtils.formatNumber(number, Locale.getDefault().getCountry());
-    }
+  public static String formatNumber(String number) {
+    return PhoneNumberUtils.formatNumber(number, Locale.getDefault().getCountry());
+  }
 }

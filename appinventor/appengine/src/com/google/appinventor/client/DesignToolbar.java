@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -13,11 +10,8 @@ import com.google.appinventor.client.editor.FileEditor;
 import com.google.appinventor.client.editor.ProjectEditor;
 import com.google.appinventor.client.editor.youngandroid.BlocklyPanel;
 import com.google.appinventor.client.editor.youngandroid.YaBlocksEditor;
-import com.google.appinventor.client.editor.youngandroid.YaFormEditor;
-import com.google.appinventor.client.editor.youngandroid.YaProjectEditor;
 
 import com.google.appinventor.client.explorer.commands.AddFormCommand;
-import com.google.appinventor.client.explorer.commands.CopyFormCommand;
 import com.google.appinventor.client.explorer.commands.ChainableCommand;
 import com.google.appinventor.client.explorer.commands.DeleteFileCommand;
 
@@ -31,13 +25,13 @@ import com.google.appinventor.client.widgets.Toolbar;
 
 import com.google.appinventor.common.version.AppInventorFeatures;
 
+import com.google.appinventor.shared.rpc.RpcResult;
 import com.google.appinventor.shared.rpc.project.ProjectRootNode;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidSourceNode;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import com.google.gwt.core.client.Callback;
 import com.google.gwt.core.client.Scheduler;
 
 import com.google.gwt.user.client.Command;
@@ -59,6 +53,8 @@ import static com.google.appinventor.client.Ode.MESSAGES;
 public class DesignToolbar extends Toolbar {
 
   private boolean isReadOnly;   // If the UI is in read only mode
+  private volatile boolean lockPublishButton = false; // Used to prevent double-clicking the
+                                                     // SendToGallery button
 
   /*
    * A Screen groups together the form editor and blocks editor for an
@@ -86,9 +82,11 @@ public class DesignToolbar extends Toolbar {
     public final String name;
     public final Map<String, Screen> screens; // screen name -> Screen
     public String currentScreen; // name of currently displayed screen
+    private long projectId;
 
     public DesignProject(String name, long projectId) {
       this.name = name;
+      this.projectId = projectId;
       screens = Maps.newHashMap();
       // Screen1 is initial screen by default
       currentScreen = YoungAndroidSourceNode.SCREEN1_FORM_NAME;
@@ -113,16 +111,20 @@ public class DesignToolbar extends Toolbar {
     public void setCurrentScreen(String name) {
       currentScreen = name;
     }
+
+    public long getProjectId() {
+      return projectId;
+    }
+
   }
 
   private static final String WIDGET_NAME_TUTORIAL_TOGGLE = "TutorialToggle";
   private static final String WIDGET_NAME_ADDFORM = "AddForm";
-  private static final String WIDGET_NAME_COPYFORM = "CopyForm";
-  private static final String WIDGET_NAME_GENERATE_LD_FORM = "GenerateLDForm";
   private static final String WIDGET_NAME_REMOVEFORM = "RemoveForm";
   private static final String WIDGET_NAME_SCREENS_DROPDOWN = "ScreensDropdown";
   private static final String WIDGET_NAME_SWITCH_TO_BLOCKS_EDITOR = "SwitchToBlocksEditor";
   private static final String WIDGET_NAME_SWITCH_TO_FORM_EDITOR = "SwitchToFormEditor";
+  private static final String WIDGET_NAME_SENDTOGALLERY = "SendToGallery";
 
   // Switch language
   private static final String WIDGET_NAME_SWITCH_LANGUAGE = "Language";
@@ -158,6 +160,9 @@ public class DesignToolbar extends Toolbar {
   // on the device.
   public static LinkedList<String> pushedScreens = Lists.newLinkedList();
 
+  // Is the Gallery Enabled (new gallery)?
+  private boolean galleryEnabled = false;
+
   /**
    * Initializes and assembles all commands into buttons in the toolbar.
    */
@@ -165,7 +170,7 @@ public class DesignToolbar extends Toolbar {
     super();
 
     isReadOnly = Ode.getInstance().isReadOnly();
-
+    galleryEnabled = Ode.getInstance().getSystemConfig().getGalleryEnabled();
     projectNameLabel = new Label();
     projectNameLabel.setStyleName("ya-ProjectName");
     HorizontalPanel toolbar = (HorizontalPanel) getWidget();
@@ -184,10 +189,12 @@ public class DesignToolbar extends Toolbar {
     if (AppInventorFeatures.allowMultiScreenApplications() && !isReadOnly) {
       addButton(new ToolbarItem(WIDGET_NAME_ADDFORM, MESSAGES.addFormButton(),
           new AddFormAction()));
-      addButton(new ToolbarItem(WIDGET_NAME_COPYFORM, MESSAGES.copyFormButton(),
-              new CopyFormAction()));
       addButton(new ToolbarItem(WIDGET_NAME_REMOVEFORM, MESSAGES.removeFormButton(),
           new RemoveFormAction()));
+    }
+    if (galleryEnabled && !Ode.getInstance().getGalleryReadOnly()) {
+      addButton(new ToolbarItem(WIDGET_NAME_SENDTOGALLERY,
+          MESSAGES.publishToGalleryButton(), new SendToGalleryAction()));
     }
 
     addButton(new ToolbarItem(WIDGET_NAME_SWITCH_TO_FORM_EDITOR,
@@ -239,20 +246,6 @@ public class DesignToolbar extends Toolbar {
     }
   }
 
-  private class CopyFormAction implements Command {
-    @Override
-    public void execute() {
-      Ode ode = Ode.getInstance();
-      if (ode.screensLocked()) {
-        return;                 // Don't permit this if we are locked out (saving files)
-      }
-      ProjectRootNode projectRootNode = ode.getCurrentYoungAndroidProjectRootNode();
-      if (projectRootNode != null) {
-        ChainableCommand cmd = new CopyFormCommand();
-        cmd.startExecuteChain(Tracking.PROJECT_ACTION_COPYFORM_YA, projectRootNode);
-      }
-    }
-  }
   private class RemoveFormAction implements Command {
     @Override
     public void execute() {
@@ -384,6 +377,39 @@ public class DesignToolbar extends Toolbar {
     }
   }
 
+  private class SendToGalleryAction implements Command {
+    @Override
+    public void execute() {
+      if (currentProject == null) {
+        OdeLog.wlog("DesignToolbar.currentProject is null. "
+            + "Ignoring SendToGalleryAction.execute().");
+        return;
+      }
+      // Only do something if we aren't already doing it!
+      if (!lockPublishButton) {
+        lockPublishButton = true;
+        Ode.getInstance().getProjectService().sendToGallery(currentProject.getProjectId(),
+          new OdeAsyncCallback<RpcResult>(
+            MESSAGES.GallerySendingError()) {
+            @Override
+            public void onSuccess(RpcResult result) {
+              lockPublishButton = false;
+              if (result.getResult() == RpcResult.SUCCESS) {
+                Window.open(result.getOutput(), "_blank", "");
+              } else {
+                ErrorReporter.reportError(result.getError());
+              }
+            }
+            @Override
+            public void onFailure(Throwable t) {
+              lockPublishButton = false;
+              super.onFailure(t);
+            }
+          });
+      }
+    }
+  }
+
   private class SwitchToFormEditorAction implements Command {
     @Override
     public void execute() {
@@ -438,6 +464,7 @@ public class DesignToolbar extends Toolbar {
             screen.screenName, new SwitchScreenAction(projectId, screen.screenName)));
       }
       projectNameLabel.setText(projectName);
+      YaBlocksEditor.resendAssetsAndExtensions();  // Send assets for active project
     } else {
       ErrorReporter.reportError("Design toolbar doesn't know about project " + projectName +
           " with id " + projectId);
@@ -543,7 +570,7 @@ public class DesignToolbar extends Toolbar {
     setButtonEnabled(WIDGET_NAME_SWITCH_TO_FORM_EDITOR, blocks);
 
     if (AppInventorFeatures.allowMultiScreenApplications() && !isReadOnly) {
-      if (getCurrentProject() == null || getCurrentProject().currentScreen == "Screen1") {
+      if (getCurrentProject() == null || "Screen1".equals(getCurrentProject().currentScreen)) {
         setButtonEnabled(WIDGET_NAME_REMOVEFORM, false);
       } else {
         setButtonEnabled(WIDGET_NAME_REMOVEFORM, true);

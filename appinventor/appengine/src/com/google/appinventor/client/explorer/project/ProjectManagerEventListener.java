@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -33,11 +30,25 @@ public interface ProjectManagerEventListener {
   void onProjectAdded(Project project);
 
   /**
-   * Invoked after a project was removed (either closed or deleted).
+   * Invoked after a project was removed from trash list.
+   *
+   * @param project  project restored
+   */
+  void onTrashProjectRestored(Project project);
+
+  /**
+   * Invoked after a project was added to trash list.
+   *
+   * @param project  project trashed
+   */
+  void onProjectTrashed(Project project);
+
+  /**
+   * Invoked after a project was deleted permanently.
    *
    * @param project  project removed
    */
-  void onProjectRemoved(Project project);
+  void onProjectDeleted(Project project);
 
   /**
    * Invoked after all projects have been loaded by ProjectManager
@@ -45,9 +56,4 @@ public interface ProjectManagerEventListener {
    */
   void onProjectsLoaded();
 
-  /**
-   * Invoked after a project is published so we can change its button to "Update"
-   *
-   */
-  void onProjectPublishedOrUnpublished();
 }

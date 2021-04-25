@@ -26,6 +26,7 @@ goog.require('goog.date.DateTime');
 goog.require('goog.dom');
 goog.require('goog.dom.InputType');
 goog.require('goog.dom.TagName');
+goog.require('goog.i18n.DateTimeParse');
 goog.require('goog.string');
 goog.require('goog.ui.Component');
 goog.require('goog.ui.DatePicker');
@@ -67,7 +68,7 @@ goog.tagUnsealableClass(goog.ui.InputDatePicker);
 
 /**
  * Used to format the date picker's date for display in the input element.
- * @type {goog.i18n.DateTimeFormat}
+ * @type {?goog.i18n.DateTimeFormat}
  * @private
  */
 goog.ui.InputDatePicker.prototype.dateTimeFormatter_ = null;
@@ -75,7 +76,7 @@ goog.ui.InputDatePicker.prototype.dateTimeFormatter_ = null;
 
 /**
  * Used to parse the input element's string as a date to set the picker.
- * @type {goog.i18n.DateTimeParse}
+ * @type {?goog.i18n.DateTimeParse}
  * @private
  */
 goog.ui.InputDatePicker.prototype.dateTimeParser_ = null;
@@ -83,7 +84,7 @@ goog.ui.InputDatePicker.prototype.dateTimeParser_ = null;
 
 /**
  * The instance of goog.ui.PopupDatePicker used to pop up and select the date.
- * @type {goog.ui.PopupDatePicker}
+ * @type {?goog.ui.PopupDatePicker}
  * @private
  */
 goog.ui.InputDatePicker.prototype.popupDatePicker_ = null;
@@ -92,7 +93,7 @@ goog.ui.InputDatePicker.prototype.popupDatePicker_ = null;
 /**
  * The element that the PopupDatePicker should be parented to. Defaults to the
  * body element of the page.
- * @type {Element}
+ * @type {?Element}
  * @private
  */
 goog.ui.InputDatePicker.prototype.popupParentElement_ = null;
@@ -156,8 +157,8 @@ goog.ui.InputDatePicker.prototype.setDate = function(date) {
 /**
  * Sets the value of the input element.  This can be overridden to support
  * alternative types of input setting.
- *
  * @param {string} value The value to set.
+ * @suppress {strictMissingProperties} Part of the go/strict_warnings_migration
  */
 goog.ui.InputDatePicker.prototype.setInputValue = function(value) {
   var el = this.getElement();
@@ -173,8 +174,8 @@ goog.ui.InputDatePicker.prototype.setInputValue = function(value) {
 /**
  * Returns the value of the input element.  This can be overridden to support
  * alternative types of input getting.
- *
  * @return {string} The input value.
+ * @suppress {strictMissingProperties} Part of the go/strict_warnings_migration
  */
 goog.ui.InputDatePicker.prototype.getInputValue = function() {
   var el = this.getElement();

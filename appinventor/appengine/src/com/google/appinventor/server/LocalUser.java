@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -72,36 +69,6 @@ public class LocalUser implements UserInfoProvider {
   }
 
   @Override
-  public String getUserName() throws UnsupportedOperationException {
-    try {
-      return user.get().getUserName();
-    } catch (NullPointerException e) {
-      // This should never happen, but just in case...
-      throw new UnsupportedOperationException("User field should have been initialized.");
-    }
-  }
-
-  @Override
-  public String getUserLink() throws UnsupportedOperationException {
-    try {
-      return user.get().getUserLink();
-    } catch (NullPointerException e) {
-      // This should never happen, but just in case...
-      throw new UnsupportedOperationException("User field should have been initialized.");
-    }
-  }
-
-  @Override
-  public int getUserEmailFrequency() throws UnsupportedOperationException {
-    try {
-      return user.get().getUserEmailFrequency();
-    } catch (NullPointerException e) {
-      // This should never happen, but just in case...
-      throw new UnsupportedOperationException("User field should have been initialized.");
-    }
-  }
-
-  @Override
   public boolean getUserTosAccepted() throws UnsupportedOperationException {
     try {
       return user.get().getUserTosAccepted();
@@ -115,16 +82,6 @@ public class LocalUser implements UserInfoProvider {
   public boolean getIsAdmin() {
     try {
       return user.get().getIsAdmin();
-    } catch (NullPointerException e) {
-      // This should never happen, but just in case...
-      throw new UnsupportedOperationException("User field should have been initialized.");
-    }
-  }
-
-  @Override
-  public int getType() {
-    try {
-      return user.get().getType();
     } catch (NullPointerException e) {
       // This should never happen, but just in case...
       throw new UnsupportedOperationException("User field should have been initialized.");

@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -9,14 +6,15 @@
 
 package com.google.appinventor.components.runtime;
 
-import android.graphics.Typeface;
-import android.util.Log;
-import com.google.appinventor.components.annotations.*;
+import com.google.appinventor.components.annotations.DesignerComponent;
+import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.IsColor;
+import com.google.appinventor.components.annotations.PropertyCategory;
+import com.google.appinventor.components.annotations.SimpleObject;
+import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
-import com.google.appinventor.components.runtime.util.MediaUtil;
-import com.google.appinventor.components.runtime.util.RMTextView;
 import com.google.appinventor.components.runtime.util.TextViewUtil;
 
 import android.util.Log;
@@ -24,11 +22,13 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import java.io.IOException;
-
 /**
- * Label containing a text string.
+ * Labels are components used to show text.
  *
+ * ![Example of a label](images/label.png)
+ *
+ * A label displays text which is specified by the `Text` property. Other properties, all of which
+ * can be set in the Designer or Blocks Editor, control the appearance and placement of the text.
  */
 @DesignerComponent(version = YaVersion.LABEL_COMPONENT_VERSION,
     description = "A Label displays a piece of text, which is " +
@@ -37,7 +37,7 @@ import java.io.IOException;
     "the appearance and placement of the text.",
     category = ComponentCategory.USERINTERFACE)
 @SimpleObject
-public final class Label extends AndroidViewComponent implements View.OnClickListener, View.OnLongClickListener {
+public final class Label extends AndroidViewComponent {
 
   // default margin around a label in DPs
   // note that the spacing between adjacent labels will be twice this value
@@ -48,7 +48,7 @@ public final class Label extends AndroidViewComponent implements View.OnClickLis
   // computed using the view
   private int defaultLabelMarginInDp = 0;
 
-  private final RMTextView view;
+  private final TextView view;
 
   private final LinearLayout.LayoutParams linearLayoutParams;
 
@@ -72,14 +72,12 @@ public final class Label extends AndroidViewComponent implements View.OnClickLis
 
   // Backing for text color
   private int textColor;
-    private boolean isHyperlined = false;
-    private boolean isMarquee = false;
-    private String typefaceFileName;
+
   // Label Format
   private boolean htmlFormat;
 
-    private static final String LOG_TAG = "Label";
-  private boolean readMore;
+  // HTML content of the label
+  private String htmlContent;
 
   /**
    * Creates a new Label component.
@@ -88,13 +86,10 @@ public final class Label extends AndroidViewComponent implements View.OnClickLis
    */
   public Label(ComponentContainer container) {
     super(container);
-    view = new RMTextView(container.$context());
+    view = new TextView(container.$context());
+
     // Adds the component to its designated container
     container.$add(this);
-
-    // Listen to clicks
-    view.setOnClickListener(this);
-    view.setOnLongClickListener(this);
 
     // Get the layout parameters to use in setting margins (and potentially
     // other things.
@@ -116,12 +111,11 @@ public final class Label extends AndroidViewComponent implements View.OnClickLis
     // Default property values
     TextAlignment(Component.ALIGNMENT_NORMAL);
     BackgroundColor(Component.COLOR_NONE);
-    ReadMore(false);
     fontTypeface = Component.TYPEFACE_DEFAULT;
     TextViewUtil.setFontTypeface(view, fontTypeface, bold, italic);
     FontSize(Component.FONT_DEFAULT_SIZE);
     Text("");
-    TextColor(Component.COLOR_BLACK);
+    TextColor(Component.COLOR_DEFAULT);
     HTMLFormat(false);
     HasMargins(true);
   }
@@ -171,11 +165,6 @@ public final class Label extends AndroidViewComponent implements View.OnClickLis
     TextViewUtil.setAlignment(view, alignment, false);
   }
 
-  @SimpleFunction(description = "Place a blurred shadow of text underneath the text, drawn with the specified x, y, radius, color (e.g. -11, 12, 13, black ")
-  public void SetShadow(float x, float y, float radius, int color) {
-    TextViewUtil.setShadow(view, x, y, radius, color);
-  }
-
   /**
    * Returns the label's background color as an alpha-red-green-blue
    * integer.
@@ -184,6 +173,7 @@ public final class Label extends AndroidViewComponent implements View.OnClickLis
    */
   @SimpleProperty(
       category = PropertyCategory.APPEARANCE)
+  @IsColor
   public int BackgroundColor() {
     return backgroundColor;
   }
@@ -213,7 +203,9 @@ public final class Label extends AndroidViewComponent implements View.OnClickLis
    *
    * @return  {@code true} indicates bold, {@code false} normal
    */
-  @SimpleProperty(category = PropertyCategory.APPEARANCE, userVisible = false)
+  @SimpleProperty(
+      category = PropertyCategory.APPEARANCE,
+      userVisible = false)
   public boolean FontBold() {
     return bold;
   }
@@ -224,8 +216,10 @@ public final class Label extends AndroidViewComponent implements View.OnClickLis
    *
    * @param bold  {@code true} indicates bold, {@code false} normal
    */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
-  @SimpleProperty(userVisible = false)
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+      defaultValue = "False")
+  @SimpleProperty(
+      userVisible = false)
   public void FontBold(boolean bold) {
     this.bold = bold;
     TextViewUtil.setFontTypeface(view, fontTypeface, bold, italic);
@@ -368,34 +362,36 @@ private void setLabelMargins(boolean hasMargins) {
 
   /**
    * Specifies the text displayed by the label.
-   * If you like to make the text hyperlinked, use Hyperlinked property
    *
    * @param text  new caption for label
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_TEXTAREA,
-          defaultValue = "")
+      defaultValue = "")
   @SimpleProperty
   public void Text(String text) {
-    view.setTransformationMethod(null);
     if (htmlFormat) {
       TextViewUtil.setTextHTML(view, text);
-    } else  if (isHyperlined) {
-      TextViewUtil.setTextHyperlinked(view, text);
     } else {
       TextViewUtil.setText(view, text);
     }
-
-    TextViewUtil.setMarque(view, isMarquee);
-    if (isMarquee) {
-      TextViewUtil.setMarque(view, isMarquee);
-    }
-    //else {
-//          //This will stop the marquee
-//          view.setMarqueeRepeatLimit(0); //disable it
-//      }
-
-    view.invalidate();
+    htmlContent = text;
   }
+
+  /**
+   * Returns the content of the Label as HTML. This is only useful if the
+   * HTMLFormat property is true.
+   *
+   * @return the HTML content of the label
+   */
+  @SimpleProperty
+  public String HTMLContent() {
+    if (htmlFormat) {
+      return htmlContent;
+    } else {
+      return TextViewUtil.getText(view);
+    }
+  }
+
 
   /**
    * Returns the label's text's format
@@ -439,6 +435,7 @@ private void setLabelMargins(boolean hasMargins) {
    */
   @SimpleProperty(
       category = PropertyCategory.APPEARANCE)
+  @IsColor
   public int TextColor() {
     return textColor;
   }
@@ -457,135 +454,7 @@ private void setLabelMargins(boolean hasMargins) {
     if (argb != Component.COLOR_DEFAULT) {
       TextViewUtil.setTextColor(view, argb);
     } else {
-      TextViewUtil.setTextColor(view, Component.COLOR_BLACK);
+      TextViewUtil.setTextColor(view, container.$form().isDarkTheme() ? Component.COLOR_WHITE : Component.COLOR_BLACK);
     }
-  }
-
-    /**
-     * Indicates if the text has to allow for hyperlinks. When set to try all text
-     * that can be hyperlinked will be linkable. Examples are web URLs, phone numbers, email addresses
-     * @param enabled  {@code true} for enabled, {@code false} disabled
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
-    @SimpleProperty
-    public void Hyperlinked(boolean enabled)
-    {
-        this.isHyperlined = enabled;
-        Text(Text());
-    }
-
-    /**
-     * Indicates if hyperlinks are set for this component
-     * @return  {@code true} indicates enabled, {@code false} disabled
-     */
-    @SimpleProperty(category = PropertyCategory.BEHAVIOR)
-    public boolean Hyperlinked()
-    {
-        return isHyperlined;
-    }
-
-    /**
-     * javadoc here
-     * @param enabled  {@code true} for enabled, {@code false} disabled
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
-    @SimpleProperty
-    public void MarqueeEnabled(boolean enabled)
-    {
-        this.isMarquee = enabled;
-        Text(Text());
-    }
-
-    /**
-     * Indicates if Marquee are set for this component
-     * @return  {@code true} indicates enabled, {@code false} disabled
-     */
-    @SimpleProperty(category = PropertyCategory.BEHAVIOR)
-    public boolean MarqueeEnabled()
-    {
-        return isMarquee;
-    }
-
-    /**
-     * Specifies the typeface to be used. Type typeface file should've been up uploaded
-     *
-     * @param fontFileName  type uploaded typeface file
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET, defaultValue = "")
-    @SimpleProperty
-    public void FontTypefaceCustom(String fontFileName) {
-        if (fontFileName == null || fontFileName.isEmpty()) {
-            return;
-        }
-
-        Typeface localTypeface1 = null;
-        try {
-            localTypeface1 = Typeface.createFromFile(MediaUtil.getMediaFile(container.$form(), fontFileName));
-        } catch (IOException e) {
-            Log.e(LOG_TAG, "Unable to load your font: " + fontFileName);
-            return;
-        }
-        if (localTypeface1 != null) {
-            view.setTypeface(localTypeface1);
-            typefaceFileName = fontFileName;
-        }
-    }
-
-    /**
-     * Returns the name of current typeface file name that is used
-     *
-     * @return  {@code true} indicates italic, {@code false} normal
-     */
-    @SimpleProperty(description = "The name of current typeface file name that is used", category = PropertyCategory.APPEARANCE)
-    public String FontTypefaceCustom() {
-        return typefaceFileName;
-    }
-
- /**
-   * Indicates a user has long clicked on the button.
-   */
-  @SimpleEvent(description = "User held the component down.")
-  public boolean LongClick() {
-    return EventDispatcher.dispatchEvent(this, "LongClick");
-  }
-
-  /**
-   * Indicates a user has clicked on the button.
-   */
-  @SimpleEvent(description = "User tapped and released the component.")
-  public void Click() {
-    EventDispatcher.dispatchEvent(this, "Click");
-  }
-
-  @Override
-  public void onClick(View view) {
-    Click();
-  }
-
-  @Override
-  public boolean onLongClick(View view) {
-    // Call the users Click event handler. Note that we distinguish the longclick() abstract method
-    // implementation from the LongClick() event handler method.
-       return LongClick();
-  }
-
-  @SimpleProperty(category = PropertyCategory.APPEARANCE)
-  public boolean ReadMore() {
-    return readMore;
-  }
-
-
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
-  @SimpleProperty(description = "Setting to true will enable ShowMore")
-  public void ReadMore(boolean readMore) {
-    this.readMore = readMore;
-    view.setReadMore(readMore);
-    if (readMore) {
-      view.setColorClickableText(COLOR_BLUE);
-      view.setTrimCollapsedText("    MORE...");
-      view.setTrimExpandedText("    ...LESS");
-    }
-
-    view.invalidate();
   }
 }

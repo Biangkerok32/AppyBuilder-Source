@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -60,6 +57,12 @@ public final class EditableProperty extends Property {
   // Property caption for use in properties panel
   private final String caption;
 
+  // Editor type of the property (for creating new editors)
+  private final String editorType;
+
+  // Additional arguments for the editor
+  private final String[] editorArgs;
+
   /**
    * Creates a new property.
    *
@@ -73,15 +76,22 @@ public final class EditableProperty extends Property {
    * @param type  type of property; see {@code TYPE_*} constants
    */
   public EditableProperty(EditableProperties properties, String name, String defaultValue,
-      String caption, PropertyEditor editor, int type) {
+      String caption, PropertyEditor editor, int type, String editorType, String[] editorArgs) {
     super(name, defaultValue);
 
     this.properties = properties;
     this.type = type;
     this.editor = editor;
     this.caption = caption;
+    this.editorType = editorType;
+    this.editorArgs = editorArgs;
 
     editor.setProperty(this);
+  }
+
+  public EditableProperty(EditableProperties properties, String name, String defaultValue,
+      int type) {
+    this(properties, name, defaultValue, name, new TextPropertyEditor(), type, "", null);
   }
 
   /**
@@ -95,8 +105,8 @@ public final class EditableProperty extends Property {
    * @param type  type of property; see {@code TYPE_*} constants
    */
   public EditableProperty(EditableProperties properties, String name, String defaultValue,
-      int type) {
-    this(properties, name, defaultValue, name, new TextPropertyEditor(), type);
+      int type, String editorType, String[] editorArgs) {
+    this(properties, name, defaultValue, name, new TextPropertyEditor(), type, editorType, editorArgs);
   }
 
   /**
@@ -120,19 +130,30 @@ public final class EditableProperty extends Property {
   }
 
   /**
-   * {@inheritDoc}
+   * Sets the value of the property, optionally forcing the property to reset its value.
    *
-   * Also notifies any property listeners of the change.
+   * @param value the value to set
+   * @param force true if the property change should be forced, otherwise false
+   * @see #setValue(String)
    */
-  @Override
-  public void setValue(String value) {
-    if (!value.equals(getValue())) {
+  public void setValue(String value, boolean force) {
+    if (!value.equals(getValue()) || force) {
       super.setValue(value);
       if (properties != null) {
         properties.firePropertyChangeEvent(getName(), value);
       }
       editor.updateValue();
     }
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * Also notifies any property listeners of the change.
+   */
+  @Override
+  public void setValue(String value) {
+    setValue(value, false);
   }
 
   /**
@@ -149,8 +170,16 @@ public final class EditableProperty extends Property {
    *
    * @return  property caption
    */
-  String getCaption() {
+  public String getCaption() {
     return caption;
+  }
+
+  public String getEditorType() {
+    return editorType;
+  }
+
+  public String[] getEditorArgs() {
+    return editorArgs;
   }
 
 

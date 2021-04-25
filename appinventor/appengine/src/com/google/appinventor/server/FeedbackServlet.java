@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2013 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -38,7 +35,7 @@ public class FeedbackServlet extends OdeServlet {
   private static final Logger LOG = Logger.getLogger(ReceiveBuildServlet.class.getName());
 
   private final OdeAuthFilter odeFilter = new OdeAuthFilter();
-  private final transient StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+  private final transient StorageIo storageIo = StorageIoInstanceHolder.getInstance();
 
   @Override
   public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -81,8 +78,8 @@ public class FeedbackServlet extends OdeServlet {
     out.println(thanks);
   }
 
-  private static final String template = "<html><head><title>Ooops</title></head>\n<body>\n<h1>Ooops! We tripped on a Bug!</h1>\n<p>Please help us by telling us what you were doing at the time this happend.\nWe have already included some technical data with this report. If you do not\nsubmit this report, nothing will be reported to us. If you do submit a report,\nyour comments along with the technical data will be sent to us.</p>\n<p>\nThank you for your help in making AppyBuilder better!\n</p>\n<form method=POST action=\"/ode/feedback\">\n<input type=hidden name=notes value=\"%1$s\">\n<input type=hidden name=foundIn value=\"%2$s\">\n<input type=hidden name=faultData value=\"%3$s\">\n<input type=hidden name=projectId value=\"%4$s\">\n<textarea cols=75 rows=5 name=comments>\n</textarea>\n<p>Technical Data to be Submitted:</p>\n<pre>\nnotes = %1$s\nfoundIn = %2$s\nfaultData = %3$s\nprojectId = %4$s\n</pre>\n<input type=submit value=\"Send Report\">\n</body>\n</html>\n";
+  private static final String template = "<html><head><title>Ooops</title></head>\n<body>\n<h1>Ooops! We tripped on a Bug!</h1>\n<p>Please help us by telling us what you were doing at the time this happend.\nWe have already included some technical data with this report. If you do not\nsubmit this report, nothing will be reported to us. If you do submit a report,\nyour comments along with the technical data will be sent to us.</p>\n<p>\nThank you for your help in making MIT App Inventor better!\n</p>\n<form method=POST action=\"/ode/feedback\">\n<input type=hidden name=notes value=\"%1$s\">\n<input type=hidden name=foundIn value=\"%2$s\">\n<input type=hidden name=faultData value=\"%3$s\">\n<input type=hidden name=projectId value=\"%4$s\">\n<textarea cols=75 rows=5 name=comments>\n</textarea>\n<p>Technical Data to be Submitted:</p>\n<pre>\nnotes = %1$s\nfoundIn = %2$s\nfaultData = %3$s\nprojectId = %4$s\n</pre>\n<input type=submit value=\"Send Report\">\n</body>\n</html>\n";
 
-  private static final String thanks = "<html><head><title>Ooops</title></head>\n<body>\n<h1>Thanks!</h1>\n<p>Your feedback has been recorded. Thanks again for contributing to \nAppyBuilder.</p>\n</body>\n</html>\n";
+  private static final String thanks = "<html><head><title>Ooops</title></head>\n<body>\n<h1>Thanks!</h1>\n<p>Your feedback has been recorded. Thanks again for contributing to MIT\nApp Inventor.</p>\n</body>\n</html>\n";
 
 }

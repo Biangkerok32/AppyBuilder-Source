@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -75,7 +72,7 @@ public abstract class CommonSettings implements PropertyChangeListener {
    * @param encodedSettings  JSON encoded settings (may be empty)
    */
   protected final void decodeSettings(String encodedSettings) {
-    if (!encodedSettings.isEmpty()) {
+    if (!encodedSettings.isEmpty() && !encodedSettings.equals("{}")) {
       JSONObject settingsObject = new ClientJsonParser().parse(encodedSettings).asObject();
       Map<String, JSONValue> properties = settingsObject.getProperties();
       for (String category : properties.keySet()) {

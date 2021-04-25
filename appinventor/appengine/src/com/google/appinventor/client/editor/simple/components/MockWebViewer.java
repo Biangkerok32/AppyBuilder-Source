@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -9,18 +6,12 @@
 
 package com.google.appinventor.client.editor.simple.components;
 
-import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.editor.simple.SimpleEditor;
 import com.google.appinventor.shared.settings.SettingsConstants;
 
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.SimplePanel;
 
-import java.util.ArrayList;
-
-import com.google.appinventor.client.output.OdeLog;
-
-import static com.google.appinventor.client.Ode.MESSAGES;
 
 /**
  * Mock WebViewer component.
@@ -39,7 +30,6 @@ public final class MockWebViewer extends MockVisibleComponent {
 
   // Large icon image for use in designer.  Smaller version is in the palette.
   private final Image largeImage = new Image(images.webviewerbig());
-  private static boolean warningGiven = false; // Whether or not we have display warning
 
   /**
    * Creates a new MockWebViewer component.
@@ -98,19 +88,4 @@ public final class MockWebViewer extends MockVisibleComponent {
     }
 
   }
-
-  /**
-   * Called when the component is dropped in the Designer window
-   * we give a warning that firebase is still experimental.
-   */
-
-  //Don't display the message. Seems like facebook upload camera is not working!
-//  @Override
-//  public void onCreateFromPalette() {
-//    if (!warningGiven) {
-//      warningGiven = true;
-//      Ode.getInstance().warningDialog(MESSAGES.warningDialogTitle(),
-//              MESSAGES.webviewerCameraWarning(), MESSAGES.okButton());
-//    }
-//  }
 }

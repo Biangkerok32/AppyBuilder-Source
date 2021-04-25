@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -39,6 +36,7 @@ import static com.google.appinventor.client.Ode.MESSAGES;
  * @author markf@google.com (Mark Friedman)
  * @author sharon@google.com (Sharon Perl)
  * @author hal@mit.edu (Hal Abelson) (added adjust alignment dropdowns)
+ * @author kkashi01@gmail.com (Hossein Amerkashi) (added Image and BackgroundColors)
  */
 public class MockHVArrangement extends MockContainer {
   //!!! why was this abstract?
@@ -140,9 +138,6 @@ public class MockHVArrangement extends MockContainer {
       refreshForm();
     } else if (propertyName.equals(PROPERTY_NAME_BACKGROUNDCOLOR)) {
       setBackgroundColorProperty(newValue);
-    } else if (propertyName.equals(GroupOrientation)) {
-      myLayout.initHVLayout(new Integer(newValue));
-      refreshForm();
     } else {
       if (propertyName.equals(PROPERTY_NAME_WIDTH) || propertyName.equals(PROPERTY_NAME_HEIGHT)) {
         refreshForm();
@@ -207,5 +202,4 @@ public class MockHVArrangement extends MockContainer {
     MockComponentsUtil.setWidgetBackgroundColor(layoutWidget, text);
   }
 }
-
 

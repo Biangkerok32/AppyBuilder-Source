@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -53,8 +50,8 @@ public class EditableProperties extends Properties<EditableProperty> {
    */
 
   public void addProperty(String name, String defaultValue, String caption,
-      PropertyEditor editor, int type) {
-    addProperty(new EditableProperty(this, name, defaultValue, caption, editor, type));
+      PropertyEditor editor, int type, String editorType, String[] editorArgs) {
+    addProperty(new EditableProperty(this, name, defaultValue, caption, editor, type, editorType, editorArgs));
   }
 
   @Override

@@ -7,8 +7,11 @@ package com.google.appinventor.server.cloudDBAuth;
 
 import com.google.appinventor.server.OdeRemoteServiceServlet;
 import com.google.appinventor.server.flags.Flag;
+
 import com.google.appinventor.shared.rpc.cloudDB.CloudDBAuthService;
+
 import com.google.appinventor.shared.util.Base58Util;
+
 import com.google.protobuf.ByteString;
 
 import java.security.InvalidKeyException;
@@ -26,7 +29,6 @@ public class CloudDBAuthServiceImpl extends OdeRemoteServiceServlet
 
   private String SECRET_KEY_UUID = Flag.createFlag("clouddb.uuid.secret", "").get();
   private String SECRET_KEY_CLOUD_DB = Flag.createFlag("clouddb.secret", "").get();
-  private String PREFIX_CLOUD_DB = Flag.createFlag("clouddb.prefix", "").get();
   private static final String HMAC_ALGORITHM = "HmacSHA256";
 
   /*
@@ -34,12 +36,7 @@ public class CloudDBAuthServiceImpl extends OdeRemoteServiceServlet
    */
   @Override
   public String getToken() {
-    if (true) return SECRET_KEY_CLOUD_DB;
-
     byte [] hunsigned = createUnsigned(getHuuid()).toByteArray();
-
-//    if (true) return Base58Util.encode(hunsigned);
-
     if (hunsigned != null) {
       try {
         SecretKeySpec secretKeySpec = new SecretKeySpec(SECRET_KEY_CLOUD_DB.getBytes(), HMAC_ALGORITHM);
