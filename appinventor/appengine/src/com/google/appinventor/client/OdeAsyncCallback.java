@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -59,7 +56,7 @@ public abstract class OdeAsyncCallback<T> implements AsyncCallback<T> {
   @Override
   public void onFailure(Throwable caught) {
     if (caught instanceof IncompatibleRemoteServiceException) {
-      ErrorReporter.reportError("AppyBuilder has just been upgraded, you will need to press the reload button in your browser window");
+      ErrorReporter.reportError("App Inventor has just been upgraded, you will need to press the reload button in your browser window");
       return;
     }
     if (caught instanceof InvalidSessionException) {

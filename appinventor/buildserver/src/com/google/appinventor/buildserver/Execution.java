@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2021 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -114,10 +111,7 @@ public final class Execution {
       Process process = Runtime.getRuntime().exec(command, null, workingDir);
       new RedirectStreamHandler(new PrintWriter(out, true), process.getInputStream());
       new RedirectStreamHandler(new PrintWriter(err, true), process.getErrorStream());
-      // wait for this thread to end
-      int waitStatus = process.waitFor();
-//      LOG.log(Level.INFO, "____wait status is " + waitStatus);
-      return waitStatus == 0;
+      return process.waitFor() == 0;
     } catch (Exception e) {
       LOG.log(Level.WARNING, "____Execution failure: ", e);
       return false;

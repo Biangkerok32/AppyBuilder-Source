@@ -371,7 +371,7 @@ function testChangeActiveMonth() {
   // Set date.
   picker.setDate(new Date(2010, 1, 26));
   assertEquals(
-      'no change active month event dispatched', 1, changeActiveMonthEvents);
+      'change active month events dispatched', 1, changeActiveMonthEvents);
   assertTrue(
       'date is set', new goog.date.Date(2010, 1, 26).equals(picker.getDate()));
 
@@ -397,6 +397,65 @@ function testChangeActiveMonth() {
   picker.previousYear();
   assertEquals(
       '4 change active month events dispatched', 5, changeActiveMonthEvents);
+}
+
+function testChangeActiveMonth_whenGridGrows_dispatchesGridIncreaseEvent() {
+  picker = new goog.ui.DatePicker();
+  picker.setShowFixedNumWeeks(false);
+  picker.render();
+  var gridSizeIncreaseEvents = 0;
+  goog.events.listen(
+      picker, goog.ui.DatePicker.Events.GRID_SIZE_INCREASE,
+      () => void gridSizeIncreaseEvents++);
+
+  // Feb 2015 has only four rows of dates.
+  picker.setDate(new Date(2015, 1, 1));
+  assertEquals('No grid size changes yet', 0, gridSizeIncreaseEvents);
+
+  // Mar 2015 has 5 rows.
+  picker.nextMonth();
+  assertEquals(
+      '1 grid size increase events dispatched', 1, gridSizeIncreaseEvents);
+
+  // Going back to Feb is a size decrease, so no dispatch.
+  picker.previousMonth();
+  assertEquals(
+      '1 grid size increase events dispatched', 1, gridSizeIncreaseEvents);
+
+  // Going forward to Mar again should dispatch again.
+  picker.nextMonth();
+  assertEquals(
+      '2 grid size increase events dispatched', 2, gridSizeIncreaseEvents);
+
+  // Apr 2015 has 5 rows also.
+  picker.nextMonth();
+  assertEquals(
+      '2 grid size increase events dispatched', 2, gridSizeIncreaseEvents);
+
+  // May 2015 has 6 rows.
+  picker.nextMonth();
+  assertEquals(
+      '3 grid size increase events dispatched', 3, gridSizeIncreaseEvents);
+}
+
+function
+testChangeActiveMonth_withFixedNumWeeks_dispatchesNoGridIncreaseEvent() {
+  picker = new goog.ui.DatePicker();
+  picker.setShowFixedNumWeeks(true);
+  picker.render();
+  var gridSizeIncreaseEvents = 0;
+  goog.events.listen(
+      picker, goog.ui.DatePicker.Events.GRID_SIZE_INCREASE,
+      () => void gridSizeIncreaseEvents++);
+
+  // Feb 2015 has only four rows of dates.
+  picker.setDate(new Date(2015, 1, 1));
+  assertEquals('No grid size changes yet', 0, gridSizeIncreaseEvents);
+
+  for (var i = 0; i < 100; i++) {
+    picker.nextMonth();
+  }
+  assertEquals('No grid size changes', 0, gridSizeIncreaseEvents);
 }
 
 function testUserSelectableDates() {
@@ -463,7 +522,10 @@ function testDecoratePreservesClasses() {
 
 
 function testKeyboardNavigation() {
-  picker = new goog.ui.DatePicker();
+  // This is a Sunday, so it's the first cell in the grid.
+  picker = new goog.ui.DatePicker(new Date(2017, 9, 1));
+  // Make the first column be Sunday, not week numbers
+  picker.setShowWeekNum(false);
   picker.render(goog.dom.getElement('sandbox'));
   var selectEvents = goog.testing.recordFunction();
   var changeEvents = goog.testing.recordFunction();
@@ -476,9 +538,31 @@ function testKeyboardNavigation() {
   changeEvents.assertCallCount(1);
   selectEvents.assertCallCount(0);
 
+  // Make sure the new selection is focused, for a11y.  elTable_[0] has the week
+  // day headers, so elTable_[2] means the second row.
+  assertEquals(picker.elTable_[2][1], document.activeElement);
+
   goog.testing.events.fireNonAsciiKeySequence(
       picker.getElement(), goog.events.KeyCodes.ENTER,
       goog.events.KeyCodes.ENTER);
   changeEvents.assertCallCount(1);
   selectEvents.assertCallCount(1);
+}
+
+
+function testDayGridHasNonEmptyAriaLabels() {
+  picker = new goog.ui.DatePicker(new Date(2017, 8, 9));
+  picker.render(goog.dom.getElement('sandbox'));
+
+  var cells = goog.dom.getElementsByTagNameAndClass(
+      goog.dom.TagName.TD, undefined, picker.getElement());
+  var numCells = cells.length;
+  for (var i = 0; i < numCells; i++) {
+    assertNotNull(cells[i]);
+    if (goog.a11y.aria.getRole(cells[i]) == goog.a11y.aria.Role.GRIDCELL) {
+      assertNonEmptyString(
+          'Aria label in date cell should not be empty',
+          goog.a11y.aria.getLabel(cells[i]));
+    }
+  }
 }

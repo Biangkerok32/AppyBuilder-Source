@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -8,15 +8,9 @@
  * and was original published under Apache 2.0 license.
  *
  */
+
 package com.google.appinventor.components.runtime.util;
 
-import java.util.List;
-import android.support.v4.app.NotificationCompat;
-import com.google.appinventor.components.common.ComponentConstants;
-import com.google.appinventor.components.runtime.Texting;
-import com.google.appinventor.components.runtime.ReplForm;
-
-import android.R;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -25,8 +19,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SmsMessage;
-
 import android.util.Log;
+import androidx.core.app.NotificationCompat;
+import com.google.appinventor.components.common.ComponentConstants;
+import com.google.appinventor.components.runtime.ReplForm;
+import com.google.appinventor.components.runtime.Texting;
+import java.util.List;
 
 /**
  * This broadcast receiver accepts incoming SMS messages from either
@@ -119,10 +117,10 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
 
     try {
       if (intent.getAction().equals("com.google.android.apps.googlevoice.SMS_RECEIVED")) {
-    // For Google Voice, phone and msg are stored in String extras. Pretty them up
+        // For Google Voice, phone and msg are stored in String extras. Pretty them up
 
-      phone = intent.getExtras().getString(Texting.PHONE_NUMBER_TAG);
-      phone = PhoneNumberUtils.formatNumber(phone);
+        phone = intent.getExtras().getString(Texting.PHONE_NUMBER_TAG);
+        phone = PhoneNumberUtils.formatNumber(phone);
 
       } else if (SdkLevel.getLevel() >= SdkLevel.LEVEL_KITKAT) {
         // On KitKat or higher, use the convience getMessageFromIntent method.
@@ -134,20 +132,20 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
             phone = smsMsg.getOriginatingAddress();
             if (SdkLevel.getLevel() >= SdkLevel.LEVEL_LOLLIPOP) {
               phone = LollipopUtil.formatNumber(phone);
-    } else {
+            } else {
               phone = PhoneNumberUtils.formatNumber(phone);
             }
           }
         }
       } else {
         // On SDK older than KitKat, we have to manually process the PDUs.
-      Object[] pdus = (Object[]) intent.getExtras().get("pdus");
-      for (Object pdu : pdus) {
-        SmsMessage smsMsg = SmsMessage.createFromPdu((byte[]) pdu);
-        phone = smsMsg.getOriginatingAddress();
-        phone = PhoneNumberUtils.formatNumber(phone);
+        Object[] pdus = (Object[]) intent.getExtras().get("pdus");
+        for (Object pdu : pdus) {
+          SmsMessage smsMsg = SmsMessage.createFromPdu((byte[]) pdu);
+          phone = smsMsg.getOriginatingAddress();
+          phone = PhoneNumberUtils.formatNumber(phone);
+        }
       }
-    }
     } catch(NullPointerException e) {
       Log.w(TAG, "Unable to retrieve originating address from SmsMessage", e);
     }
@@ -164,9 +162,9 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
 
     try {
       if (intent.getAction().equals("com.google.android.apps.googlevoice.SMS_RECEIVED")) {
-    // For Google Voice, msg is stored in String extras.
+        // For Google Voice, msg is stored in String extras.
 
-      msg = intent.getExtras().getString(Texting.MESSAGE_TAG);
+        msg = intent.getExtras().getString(Texting.MESSAGE_TAG);
 
       } else if (SdkLevel.getLevel() >= SdkLevel.LEVEL_KITKAT) {
         // On KitKat or higher, use the convience getMessageFromIntent method.
@@ -178,16 +176,16 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
           }
         }
         msg = sb.toString();
-    } else {
+      } else {
         // On SDK older than KitKat, we have to manually process the PDUs.
         StringBuilder sb = new StringBuilder();
-      Object[] pdus = (Object[]) intent.getExtras().get("pdus");
-      for (Object pdu : pdus) {
-        SmsMessage smsMsg = SmsMessage.createFromPdu((byte[]) pdu);
+        Object[] pdus = (Object[]) intent.getExtras().get("pdus");
+        for (Object pdu : pdus) {
+          SmsMessage smsMsg = SmsMessage.createFromPdu((byte[]) pdu);
           sb.append(smsMsg.getMessageBody());
-      }
+        }
         msg = sb.toString();
-    }
+      }
     } catch(NullPointerException e) {
       // getMessageBody() can throw a NPE if its wrapped message is null, but there isn't an
       // API to check whether this is the case.
@@ -225,10 +223,9 @@ public class SmsBroadcastReceiver extends BroadcastReceiver {
 
       // Create the Notification
       PendingIntent activity = PendingIntent.getActivity(context, 0, newIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
       NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
       Notification note = new NotificationCompat.Builder(context)
-          .setSmallIcon(R.drawable.sym_call_incoming)
+          .setSmallIcon(android.R.drawable.sym_call_incoming)
           .setTicker(phone + " : " + msg)
           .setWhen(System.currentTimeMillis())
           .setAutoCancel(true)

@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -92,7 +89,7 @@ public abstract class ColorChoicePropertyEditor extends PropertyEditor {
 
     static String getHtmlDescription(String rgbString, String name) {
       return "<span style=\"background:#" + rgbString + "; border:1px solid black; " +
-        "width:1em; height:1em; border-radius:360px\">&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;" + name;
+          "width:1em; height:1em\">&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;" + name;
     }
   }
 
@@ -178,11 +175,13 @@ public abstract class ColorChoicePropertyEditor extends PropertyEditor {
       choices.add(new DropDownItem(WIDGET_NAME, description, new Command() {
         @Override
         public void execute() {
+          boolean isMultiple = isMultipleValues();
+          setMultipleValues(false);
           if (color.argbValue == 0) {
             // Handle default value specially to prevent sending #x00000000 to the REPL...
-            property.setValue(defaultValue);
+            property.setValue(defaultValue, isMultiple);
           } else {
-            property.setValue(hexPrefix + color.alphaString + color.rgbString);
+            property.setValue(hexPrefix + color.alphaString + color.rgbString, isMultiple);
           }
           if (advanced) {
             String customColor = color.argbValue == 0 ?
@@ -252,6 +251,11 @@ public abstract class ColorChoicePropertyEditor extends PropertyEditor {
 
   @Override
   protected void updateValue() {
+    // There was a collision so we should show the multiple indicator
+    if (isMultipleValues()) {
+      selectedColorMenu.setCaption(MESSAGES.multipleValues());
+      return;
+    }
     // When receiving the property values from the server hex numbers were converted to decimal
     // numbers
     String propertyValue = property.getValue();
@@ -307,7 +311,7 @@ public abstract class ColorChoicePropertyEditor extends PropertyEditor {
    */
   private static String makeCustomHTML(double a, int r, int g, int b) {
     return "<span style=\"background:rgba(" + r + "," + g + "," + b + "," + a + "); border:1px solid black; " +
-      "width:1em; height:1em; border-radius:360px\">&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;" + MESSAGES.customEllipsis();
+        "width:1em; height:1em\">&nbsp;&nbsp;&nbsp;</span>&nbsp;&nbsp;&nbsp;" + MESSAGES.customEllipsis();
   }
 
   /**

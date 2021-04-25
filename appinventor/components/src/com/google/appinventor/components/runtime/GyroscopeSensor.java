@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -93,6 +90,7 @@ public class GyroscopeSensor extends AndroidNonvisibleComponent
 
   /**
    * GyroscopeChanged event handler.
+   * @suppressdoc
    */
   @SimpleEvent(description = "Indicates that the gyroscope sensor data has changed. The " +
       "timestamp parameter is the time in nanoseconds at which the event occurred.")
@@ -109,6 +107,7 @@ public class GyroscopeSensor extends AndroidNonvisibleComponent
    *
    * @return {@code true} indicates that a gyroscope sensor is available,
    *         {@code false} that it isn't
+   * @suppressdoc
    */
   @SimpleProperty(description = "Indicates whether a gyroscope sensor is available.",
       category = PropertyCategory.BEHAVIOR)
@@ -121,6 +120,7 @@ public class GyroscopeSensor extends AndroidNonvisibleComponent
    *
    * @return {@code true} indicates that the sensor generates events,
    *         {@code false} that it doesn't
+   * @suppressdoc
    */
   @SimpleProperty(category = PropertyCategory.BEHAVIOR)
   public boolean Enabled() {
@@ -132,6 +132,7 @@ public class GyroscopeSensor extends AndroidNonvisibleComponent
    *
    * @param enabled  {@code true} enables sensor event generation,
    *                 {@code false} disables it
+   * @suppressdoc
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
       defaultValue = "True")
@@ -155,6 +156,7 @@ public class GyroscopeSensor extends AndroidNonvisibleComponent
    * <p>To return meaningful values the sensor must be enabled.</p>
    *
    * @return  current angular velocity around x axis
+   * @suppressdoc
    */
   @SimpleProperty(description = "The angular velocity around the X axis, in degrees per second.",
       category = PropertyCategory.BEHAVIOR)
@@ -168,6 +170,7 @@ public class GyroscopeSensor extends AndroidNonvisibleComponent
    * <p>To return meaningful values the sensor must be enabled.</p>
    *
    * @return  current angular velocity around y axis
+   * @suppressdoc
    */
   @SimpleProperty(description = "The angular velocity around the Y axis, in degrees per second.",
       category = PropertyCategory.BEHAVIOR)
@@ -181,6 +184,7 @@ public class GyroscopeSensor extends AndroidNonvisibleComponent
    * <p>To return meaningful values the sensor must be enabled.</p>
    *
    * @return  current angular velocity around z axis
+   * @suppressdoc
    */
   @SimpleProperty(description = "The angular velocity around the Z axis, in degrees per second.",
       category = PropertyCategory.BEHAVIOR)

@@ -46,14 +46,14 @@ goog.storage.mechanism.IEUserData = function(storageKey, opt_storageNodeId) {
   /**
    * The key to store the data under.
    *
-   * @private {?string}
+   * @private {string}
    */
   this.storageKey_ = storageKey;
 
   /**
    * The document element used for storing data.
    *
-   * @private {Element}
+   * @private {?Element}
    */
   this.storageNode_ = null;
 
@@ -81,7 +81,7 @@ goog.storage.mechanism.IEUserData = function(storageKey, opt_storageNodeId) {
           storageKey, this.storageNode_);
     }
 
-    /** @preserveTry */
+
     try {
       // Availability check.
       this.loadNode_();
@@ -117,7 +117,7 @@ goog.storage.mechanism.IEUserData.ENCODE_MAP = {
 /**
  * Global storageKey to storageNode map, so we save on reloading the storage.
  *
- * @type {goog.structs.Map}
+ * @type {?goog.structs.Map}
  * @private
  */
 goog.storage.mechanism.IEUserData.storageMap_ = null;
@@ -255,7 +255,7 @@ goog.storage.mechanism.IEUserData.prototype.loadNode_ = function() {
  * @private
  */
 goog.storage.mechanism.IEUserData.prototype.saveNode_ = function() {
-  /** @preserveTry */
+
   try {
     // This is a special IE-only method on Elements letting us persist data.
     // Do not try to assign this.storageNode_['save'] to a variable, it does

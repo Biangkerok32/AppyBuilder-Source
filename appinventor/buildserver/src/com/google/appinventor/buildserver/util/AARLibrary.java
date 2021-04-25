@@ -5,17 +5,23 @@
 
 package com.google.appinventor.buildserver.util;
 
-import com.android.io.StreamException;
-import com.android.xml.AndroidManifest;
-import org.apache.commons.io.IOUtils;
-
-import javax.xml.xpath.XPathExpressionException;
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import javax.xml.xpath.XPathExpressionException;
+
+import org.apache.commons.io.IOUtils;
+
+import com.android.io.StreamException;
+import com.android.xml.AndroidManifest;
 
 /**
  * AARLibrary encapsulates important information about Android Archive (AAR) files so that they
@@ -116,8 +122,6 @@ public class AARLibrary {
    */
   public AARLibrary(final File aar) {
     aarPath = aar;
-//    String temp = aar.getAbsolutePath();
-//    name = temp.substring(temp.lastIndexOf(File.separatorChar), temp.length()-4);
     String temp = aar.getName();
     name = temp.substring(0, temp.length()-4);
   }
@@ -225,15 +229,15 @@ public class AARLibrary {
    */
   public void unpackToDirectory(final File path) throws IOException {
     ZipFile zip = null;
-    InputStream input = null;
-    OutputStream output = null;
     try {
       zip = new ZipFile(aarPath);
       packageName = extractPackageName(zip);
       basedir = new File(path, packageName);
-      if (!basedir.mkdirs()) {
-        throw new IOException("Unable to create directory for AAR package");
+      if (!basedir.exists() && !basedir.mkdirs()) {
+        throw new IOException("Unable to create directory for AAR package: " + basedir);
       }
+      InputStream input = null;
+      OutputStream output = null;
       Enumeration<? extends ZipEntry> i = zip.entries();
       while (i.hasMoreElements()) {
         ZipEntry entry = i.nextElement();
@@ -242,9 +246,15 @@ public class AARLibrary {
           throw new IOException("Unable to create directory " + path.getAbsolutePath());
         } else if (!entry.isDirectory()) {
           try {
-          output = new FileOutputStream(target);
-          input = zip.getInputStream(entry);
-          IOUtils.copy(input, output);
+            // Need to make sure the parent directory is present. Files can appear
+            // in a ZIP (AAR) file without an explicit directory object
+            File parentDir = target.getParentFile();
+            if (!parentDir.exists()) {
+              parentDir.mkdirs();
+            }
+            output = new FileOutputStream(target);
+            input = zip.getInputStream(entry);
+            IOUtils.copy(input, output);
           } finally {
             IOUtils.closeQuietly(input);
             IOUtils.closeQuietly(output);
@@ -257,8 +267,6 @@ public class AARLibrary {
         resdir = null;
       }
     } finally {
-      IOUtils.closeQuietly(output);
-      IOUtils.closeQuietly(input);
       IOUtils.closeQuietly(zip);
     }
   }

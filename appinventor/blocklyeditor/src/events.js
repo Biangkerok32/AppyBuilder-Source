@@ -74,12 +74,18 @@ AI.Events.BLOCKS_ARRANGE_END = 'blocks.arrange.end';
  * Type identifier used for programmatic workspace shifts.
  * @type {string}
  */
-    AI.Events.WORKSPACE_VIEWPORT_MOVE = "blocks.workspace.move";
+AI.Events.WORKSPACE_VIEWPORT_MOVE = "blocks.workspace.move";
 
-    /**
-     * Abstract class for all App Inventor events.
-     * @constructor
-     */
+/**
+ * Type identifier used for forcing a workspace save (required after upgrades).
+ * @type {string}
+ */
+AI.Events.FORCE_SAVE = 'blocks.save.force';
+
+/**
+ * Abstract class for all App Inventor events.
+ * @constructor
+ */
 AI.Events.Abstract = function() {
   this.group = Blockly.Events.group_;
   this.recordUndo = Blockly.Events.recordUndo;
@@ -403,13 +409,13 @@ AI.Events.EndArrangeBlocks.prototype.run = function(forward) {
  * @constructor
  */
 AI.Events.WorkspaceMove = function(workspaceId) {
-    AI.Events.WorkspaceMove.superClass_.constructor.call(this);
-    this.workspaceId = workspaceId;
-    var metrics = Blockly.Workspace.getById(workspaceId).getMetrics();
-    this.oldX = metrics.viewLeft - metrics.contentLeft;
-    this.oldY = metrics.viewTop - metrics.contentTop;
-    this.newX = null;
-    this.newY = null;
+  AI.Events.WorkspaceMove.superClass_.constructor.call(this);
+  this.workspaceId = workspaceId;
+  var metrics = Blockly.Workspace.getById(workspaceId).getMetrics();
+  this.oldX = metrics.viewLeft - metrics.contentLeft;
+  this.oldY = metrics.viewTop - metrics.contentTop;
+  this.newX = null;
+  this.newY = null;
 };
 goog.inherits(AI.Events.WorkspaceMove, AI.Events.Abstract);
 
@@ -430,15 +436,15 @@ AI.Events.WorkspaceMove.prototype.isTransient = true;
  * @returns {!Object}
  */
 AI.Events.WorkspaceMove.prototype.toJson = function() {
-    var json = AI.Events.WorkspaceMove.superClass_.toJson.call(this);
-    json['workspaceId'] = this.workspaceId;
-    if (this.newX) {
-        json['newX'] = this.newX;
-    }
-    if (this.newY) {
-        json['newY'] = this.newY;
-    }
-    return json;
+  var json = AI.Events.WorkspaceMove.superClass_.toJson.call(this);
+  json['workspaceId'] = this.workspaceId;
+  if (this.newX) {
+    json['newX'] = this.newX;
+  }
+  if (this.newY) {
+    json['newY'] = this.newY;
+  }
+  return json;
 };
 
 /**
@@ -446,19 +452,19 @@ AI.Events.WorkspaceMove.prototype.toJson = function() {
  * @param {!Object} json JSON representation.
  */
 AI.Events.WorkspaceMove.prototype.fromJson = function() {
-    AI.Events.WorkspaceMove.superClass_.fromJson.call(this, json);
-    this.workspaceId = json['workspaceId'];
-    this.newX = json['newX'];
-    this.newY = json['newY'];
+  AI.Events.WorkspaceMove.superClass_.fromJson.call(this, json);
+  this.workspaceId = json['workspaceId'];
+  this.newX = json['newX'];
+  this.newY = json['newY'];
 };
 
 /**
  * Record the new state of the workspace after the operation has occurred.
  */
 AI.Events.WorkspaceMove.prototype.recordNew = function() {
-    var metrics = Blockly.Workspace.getById(this.workspaceId).getMetrics();
-    this.newX = metrics.viewLeft - metrics.contentLeft;
-    this.newY = metrics.viewTop - metrics.contentTop;
+  var metrics = Blockly.Workspace.getById(this.workspaceId).getMetrics();
+  this.newX = metrics.viewLeft - metrics.contentLeft;
+  this.newY = metrics.viewTop - metrics.contentTop;
 };
 
 /**
@@ -467,7 +473,7 @@ AI.Events.WorkspaceMove.prototype.recordNew = function() {
  * @returns {boolean}
  */
 AI.Events.WorkspaceMove.prototype.isNull = function() {
-    return this.oldX === this.newX && this.oldY === this.newY;
+  return this.oldX === this.newX && this.oldY === this.newY;
 };
 
 /**
@@ -475,10 +481,56 @@ AI.Events.WorkspaceMove.prototype.isNull = function() {
  * @param {boolean} forward True if run forward, false if run backward (undo).
  */
 AI.Events.WorkspaceMove.prototype.run = function(forward) {
-    var workspace = Blockly.Workspace.getById(this.workspaceId);
-    var x = forward ? this.newX : this.oldX;
-    var y = forward ? this.newY : this.oldY;
-    workspace.scrollbar.set(x, y);
+  var workspace = Blockly.Workspace.getById(this.workspaceId);
+  var x = forward ? this.newX : this.oldX;
+  var y = forward ? this.newY : this.oldY;
+  workspace.scrollbar.set(x, y);
+};
+
+/**
+ * An event used to trigger a save of the blocks workspace.
+ * @param {Blockly.Workspace=} workspace The workspace to be saved.
+ * @constructor
+ */
+AI.Events.ForceSave = function(workspace) {
+  AI.Events.ForceSave.superClass_.constructor.call(this);
+  if (workspace) {
+    this.workspaceId = workspace.id;
+  }
+  this.recordUndo = false;
+};
+goog.inherits(AI.Events.ForceSave, AI.Events.Abstract);
+
+/**
+ * The type of the event.
+ * @type {string}
+ */
+AI.Events.ForceSave.prototype.type = AI.Events.FORCE_SAVE;
+
+/**
+ * ForceSave must not be transient. The isTransient flag is used to determine whether or not to
+ * save the workspace, so if ForceSave were transient the workspace would not save.
+ * @type {boolean}
+ */
+AI.Events.ForceSave.prototype.isTransient = false;
+
+/**
+ * Serialize the ForceSave event as a JSON object.
+ * @returns {Object}
+ */
+AI.Events.ForceSave.prototype.toJson = function() {
+  var json = AI.Events.ForceSave.superClass_.toJson.call(this);
+  json['workspaceId'] = this.workspaceId;
+  return json;
+};
+
+/**
+ * Deserialize the ForceSave event form a JSON object.
+ * @param {Object} json A JSON object previously created by {@link #toJson()}
+ */
+AI.Events.ForceSave.prototype.fromJson = function(json) {
+  AI.Events.ForceSave.superClass_.fromJson.call(this, json);
+  this.workspaceId = json['workspaceId'];
 };
 
 /**

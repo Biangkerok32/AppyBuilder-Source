@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright © 2013-2017 Massachusetts Institute of Technology, All rights reserved
+// Copyright © 2013-2019 Massachusetts Institute of Technology, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 /**
@@ -69,6 +69,7 @@ Blockly.Versioning.upgrade = function (preUpgradeFormJsonString, blocksContent, 
   opt_workspace = opt_workspace || Blockly.mainWorkspace;
   var preUpgradeFormJsonObject = JSON.parse(preUpgradeFormJsonString);
   var dom = Blockly.Xml.textToDom(blocksContent); // Initial blocks rep is dom for blocksContent
+  var didUpgrade = false;
 
   /**
    * Upgrade the given componentType. If componentType is "Language", upgrades the blocks language.
@@ -117,6 +118,7 @@ Blockly.Versioning.upgrade = function (preUpgradeFormJsonString, blocksContent, 
         // Apply upgrader, possibly mutating rep and changing its dynamic type.
         rep = Blockly.Versioning.applyUpgrader(versionUpgrader, rep, opt_workspace);
       }
+      didUpgrade = true;
     } // otherwise, preUpgradeVersion and systemVersion are equal and no updgrade is necessary
     return rep; // Return final blocks representation, for dynamic typing purposes
   }
@@ -153,8 +155,9 @@ Blockly.Versioning.upgrade = function (preUpgradeFormJsonString, blocksContent, 
   var preUpgradeComponentVersionDict = Blockly.Versioning.makeComponentVersionDict(preUpgradeFormJsonObject);
   for (var componentType in preUpgradeComponentVersionDict) {
     if (!preUpgradeComponentVersionDict.hasOwnProperty(componentType)) continue;
-      // Cannot upgrade extensions as they are not part of the system
-      if (Blockly.Versioning.isExternal(componentType, opt_workspace)) continue;
+
+    // Cannot upgrade extensions as they are not part of the system
+    if (Blockly.Versioning.isExternal(componentType, opt_workspace)) continue;
 
     var preUpgradeVersion = preUpgradeComponentVersionDict[componentType];
     var systemVersion = Blockly.Versioning.getSystemComponentVersion(componentType, opt_workspace);
@@ -165,6 +168,7 @@ Blockly.Versioning.upgrade = function (preUpgradeFormJsonString, blocksContent, 
   Blockly.Versioning.log("Blockly.Versioning.upgrade: Final conversion to Blockly.mainWorkspace");
   Blockly.Versioning.ensureWorkspace(blocksRep, opt_workspace); // No need to use result; does work by side effect on Blockly.mainWorkspace
 
+  return didUpgrade;
 };
 
 /**
@@ -259,8 +263,8 @@ Blockly.Versioning.ensureWorkspace = function (blocksRep, opt_workspace) {
     var workspace = opt_workspace || Blockly.mainWorkspace;
     Blockly.Versioning.log("Blockly.Versioning.ensureWorkspace: converting dom to Blockly.mainWorkspace");
     workspace.clear(); // Remove any existing blocks before we add new ones.
-    Blockly.Xml.domToWorkspaceHeadless(blocksRep, workspace);
-      // update top block positions in event of save before rendering.
+    Blockly.Xml.domToWorkspace(blocksRep, workspace);
+    // update top block positions in event of save before rendering.
     var blocks = workspace.getTopBlocks();
     for (var i = 0; i < blocks.length; i++) {
       var block = blocks[i];
@@ -417,13 +421,13 @@ Blockly.Versioning.getSystemComponentVersion = function (componentType, workspac
   }
 };
 
-Blockly.Versioning.isExternal = function (componentType, workspace) {
-    var description = workspace.getComponentDatabase().getType(componentType);
-    if (description && description.componentInfo) {
-        return 'true' === description.componentInfo.external;
-    } else {
-        return false;
-    }
+Blockly.Versioning.isExternal = function(componentType, workspace) {
+  var description = workspace.getComponentDatabase().getType(componentType);
+  if (description && description.componentInfo) {
+    return 'true' === description.componentInfo.external;
+  } else {
+    return false;
+  }
 };
 
 /******************************************************************************
@@ -886,15 +890,15 @@ Blockly.Versioning.addDefaultMethodArgument = function(componentType, methodName
  * @author ewpatton@mit.edu (Evan W. Patton)
  */
 Blockly.Versioning.changeEventName = function(componentType, oldEventName, newEventName) {
-    return function (blocksRep) {
-        var dom = Blockly.Versioning.ensureDom(blocksRep);
-        var eventHandlerBlocks = Blockly.Versioning.findAllEventHandlers(dom, componentType, oldEventName);
-        for (var b = 0, eventBlock; eventBlock = eventHandlerBlocks[b]; b++) {
-            var mutation = Blockly.Versioning.firstChildWithTagName(eventBlock, 'mutation');
-            mutation.setAttribute('event_name', newEventName);
-        }
-        return dom;
-    };
+  return function (blocksRep) {
+    var dom = Blockly.Versioning.ensureDom(blocksRep);
+    var eventHandlerBlocks = Blockly.Versioning.findAllEventHandlers(dom, componentType, oldEventName);
+    for (var b = 0, eventBlock; eventBlock = eventHandlerBlocks[b]; b++) {
+      var mutation = Blockly.Versioning.firstChildWithTagName(eventBlock, 'mutation');
+      mutation.setAttribute('event_name', newEventName);
+    }
+    return dom;
+  };
 };
 
 /**
@@ -964,21 +968,21 @@ Blockly.Versioning.changePropertyName = function(componentType, oldPropertyName,
  * @author ewpatton@mit.edu (Evan W. Patton)
  */
 Blockly.Versioning.findAllEventHandlers = function (dom, componentType, eventName) {
-    var eventBlocks = [];
-    for (var i = 0; i < dom.children.length; i++) {
-        var block = dom.children[i];
-        if (block.tagName === 'block' && block.getAttribute('type') === 'component_event') {
-            var mutation = Blockly.Versioning.firstChildWithTagName(block, 'mutation');
-            if (!mutation) {
-                throw 'Did not find expected mutation child in Blockly.Versioning.findAllEventHandlers ' +
-                'with componentType = ' + componentType + ' and eventName = ' + eventName;
-            } else if ((mutation.getAttribute('component_type') === componentType) &&
-                (mutation.getAttribute('event_name') === eventName)) {
-                eventBlocks.push(block);
-            }
-        }
+  var eventBlocks = [];
+  for (var i = 0; i < dom.children.length; i++) {
+    var block = dom.children[i];
+    if (block.tagName === 'block' && block.getAttribute('type') === 'component_event') {
+      var mutation = Blockly.Versioning.firstChildWithTagName(block, 'mutation');
+      if (!mutation) {
+        throw 'Did not find expected mutation child in Blockly.Versioning.findAllEventHandlers ' +
+          'with componentType = ' + componentType + ' and eventName = ' + eventName;
+      } else if ((mutation.getAttribute('component_type') === componentType) &&
+          (mutation.getAttribute('event_name') === eventName)) {
+        eventBlocks.push(block);
+      }
     }
-    return eventBlocks;
+  }
+  return eventBlocks;
 };
 
 /**
@@ -1205,8 +1209,11 @@ Blockly.Versioning.AllUpgradeMaps =
       for (Element block : getAllMatchingGenusBlocks("Ball-Flung")) {
         markBlockBad(block, String.format(CHANGED_FLUNG_WARNING, "Flung"));
     */
-    5: "ai1CantDoUpgrade" // Just indicates we couldn't do upgrade even if we wanted to
+    5: "ai1CantDoUpgrade", // Just indicates we couldn't do upgrade even if we wanted to
 
+    // The CenterAtOrigin property was added.
+    // The default value of false is correct for upgraded apps.
+    6: "noUpgrade"
   }, // End Ball upgraders
 
   "BarcodeScanner": {
@@ -1240,7 +1247,11 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // The BluetoothClient.Secure property was added.
     // No blocks need to be modified to upgrade to version 5.
-    5: "noUpgrade"
+    5: "noUpgrade",
+
+    // The BluetoothClient.DisconnectOnError property was added.
+    // No blocks need to be modified to upgrade to version 5.
+    6: "noUpgrade"
 
   }, // End BluetoothClient upgraders
 
@@ -1372,10 +1383,18 @@ Blockly.Versioning.AllUpgradeMaps =
     // AI2: No blocks need to be modified to upgrade to version 10
     // The default value of TextAlignment was changed from Normal (left) to Center
     10: "noUpgrade",
+
     // DrawShape & DrawArc was added
     // No blocks need to be modified to upgrade to version 11.
-    11: "noUpgrade"
-    ,12: "noUpgrade"  // DrawPolygon was added. No blocks needed to be updated
+    11: "noUpgrade",
+
+    // ExtendMovesOutsideCanvas was added
+    // No blocks need to be modified to upgrade to version 12.
+    12: "noUpgrade",
+
+    //  BackgroundImageinBase64 was added
+    // No blocks need to be modified to upgrade to version 13.
+    13: "noUpgrade"
 
   }, // End Canvas upgraders
 
@@ -1407,19 +1426,19 @@ Blockly.Versioning.AllUpgradeMaps =
       ],
 
     // Duration Support was added.
-    3: "noUpgrade"
+    3: "noUpgrade",
+
+    // MakeDate, MakeTime, MakeInstantFromParts methods added
+    4: "noUpgrade"
 
   }, // End Clock upgraders
 
-    "CloudDB": {
-        //This is initial version. Placeholder for future upgrades
-        1: "noUpgrade"
-    },
+  "CloudDB": {
 
-    "MemoryInfo": {
-        //This is initial version. Placeholder for future upgrades
-        1: "noUpgrade"
-    },
+    //This is initial version. Placeholder for future upgrades
+    1: "noUpgrade"
+
+  },
 
   "ContactPicker": {
 
@@ -1475,26 +1494,30 @@ Blockly.Versioning.AllUpgradeMaps =
 
   }, // End EmailPicker upgraders
 
-    "FeatureCollection": {
+  "FeatureCollection": {
 
-        // AI2:
-        // - The GeoJSONError event was renamed to LoadError
-        // - The GotGeoJSON event was renamed to GotFeatures
-        // - The ErrorLoadingFeatureCollection event was removed in favor of LoadError
-        // - The LoadedFeatureCollection event was removed in favor of GotFeatures
-        2: [
-            Blockly.Versioning.changeEventName('FeatureCollection', 'GeoJSONError', 'LoadError'),
-            Blockly.Versioning.changeEventName('FeatureCollection', 'GeoGeoJSON', 'GotFeatures'),
-            Blockly.Versioning.changeEventName('FeatureCollection', 'ErrorLoadingFeatureCollection', 'LoadError'),
-            Blockly.Versioning.changeEventName('FeatureCollection', 'LoadedFeatureCollection', 'GotFeatures')
-        ]
-    },
+    // AI2:
+    // - The GeoJSONError event was renamed to LoadError
+    // - The GotGeoJSON event was renamed to GotFeatures
+    // - The ErrorLoadingFeatureCollection event was removed in favor of LoadError
+    // - The LoadedFeatureCollection event was removed in favor of GotFeatures
+    2: [
+      Blockly.Versioning.changeEventName('FeatureCollection', 'GeoJSONError', 'LoadError'),
+      Blockly.Versioning.changeEventName('FeatureCollection', 'GeoGeoJSON', 'GotFeatures'),
+      Blockly.Versioning.changeEventName('FeatureCollection', 'ErrorLoadingFeatureCollection', 'LoadError'),
+      Blockly.Versioning.changeEventName('FeatureCollection', 'LoadedFeatureCollection', 'GotFeatures')
+    ]
+  },
 
   "File": {
 
     // AI2: The AfterFileSaved event was added.
     // No blocks need to be modified to upgrade to version 2.
-    2: "noUpgrade"
+    2: "noUpgrade",
+
+    // AI2: The LegacyMode property was added.
+    // No blocks need to be modified to upgrade to version 3.
+    3: "noUpgrade"
 
   }, // End File upgraders
 
@@ -1506,11 +1529,7 @@ Blockly.Versioning.AllUpgradeMaps =
     // AI2 Added AppendValue, RemoveFirst and FirstRemoved
     2: "noUpgrade",
     // AI2 Added ClearTag function, GetTagList and Persist
-   3: "noUpgrade",
-
-   // The LoadingDialogMessage property was added
-   // The ShowLoadingDialog property was added
-   4: "noUpgrade"
+    3: "noUpgrade"
 
   },
 
@@ -1523,10 +1542,11 @@ Blockly.Versioning.AllUpgradeMaps =
     // AI2: - InsertRow, GetRows and GetRowsWithConditions was added.
     // - KeyFile, UseServiceAuthentication and ServiceAccountEmail
     //   were added.
-    3: "noUpgrade"
+    3: "noUpgrade",
+
     // The LoadingDialogMessage property was added
     // The ShowLoadingDialog property was added
-    ,4: "noUpgrade"
+    4: "noUpgrade"
 
   }, // End FusiontablesControl upgraders
 
@@ -1572,7 +1592,11 @@ Blockly.Versioning.AllUpgradeMaps =
     2: "noUpgrade",
 
     // Scaling property was added (but not in use yet)
-    3: "noUpgrade"
+    3: "noUpgrade",
+
+    // Click event was added
+    // The Clickable property was added.
+    4: "noUpgrade"
 
   }, // End Image upgraders
 
@@ -1648,7 +1672,9 @@ Blockly.Versioning.AllUpgradeMaps =
     3: "noUpgrade",
 
     // AI2: Add HTMLFormat property
-    4: "noUpgrade"
+    4: "noUpgrade",
+
+    5: "noUpgrade"
 
   }, // End Label upgraders
 
@@ -1770,12 +1796,45 @@ Blockly.Versioning.AllUpgradeMaps =
     // AI2: In BLOCKS_LANGUAGE_VERSION 20// Rename 'obsufcated_text' text block to 'obfuscated_text'
     20: Blockly.Versioning.renameBlockType('obsufcated_text', 'obfuscated_text'),
 
-      // AI2: Added is a string? block to test whether values are strings.
-      21: "noUpgrade"
-      // AI2: Added Break Block
-      ,22: "noUpgrade"
-      // AI2: Added Bitwise Blocks
-      ,23: "noUpgrade"
+    // AI2: Added is a string? block to test whether values are strings.
+    21: "noUpgrade",
+
+    // AI2: Added Break Block
+    22: "noUpgrade",
+
+    // AI2: Added Bitwise Blocks
+    23: "noUpgrade",
+
+    // AI2: In BLOCKS_LANGUAGE_VERSION 24, added List Reverse Block
+    24: "noUpgrade",
+
+    // AI2: In BLOCKS_LANGUAGE_VERSION 25, added Join With Separator Block
+    25: "noUpgrade",
+
+    // AI2: In BLOCKS_LANGUAGE_VERSION 26, Added generic event handlers
+    26: "noUpgrade",
+
+    // AI2: In BLOCKS_LANGUAGE_VERSION 27, Added not-equal to text compare block
+    27: "noUpgrade",
+
+    // AI2: Added dictionaries
+    28: "noUpgrade",
+
+    // AI2: Added "for each in dictionary" block.
+    29: "noUpgrade",
+
+    // AI2: In BLOCKS_LANGUAGE_VERSION 30, The Reverse Text block was added
+    30: "noUpgrade",
+
+    // AI2: Added "replace all mappings" block
+    31: "noUpgrade",
+
+    // AI2: Added mutators for and/or blocks
+    32: "noUpgrade",
+
+    // AI2: Added "contains any" and "contains all" options to the text contains block.
+    33:"noUpgrade"
+
   }, // End Language upgraders
 
 
@@ -1841,35 +1900,70 @@ Blockly.Versioning.AllUpgradeMaps =
     3: "noUpgrade"
 
   }, // End LocationSensor upgraders
-    "Map": {
 
-        // AI2:
-        // - The Markers property was renamed to Features
-        // - The LoadGeoJSONFromURL method was renamed to LoadFromURL
-        // - The FeatureFromGeoJSONDescription method was renamed to FeatureFromDescription
-        2: [
-            Blockly.Versioning.changePropertyName('Map', 'Markers', 'Features'),
-            Blockly.Versioning.changeMethodName('Map', 'LoadGeoJSONFromUrl', 'LoadFromURL'),
-            Blockly.Versioning.changeMethodName('Map', 'FeatureFromGeoJSONDescription', 'FeatureFromDescription')
-        ],
+  "Map": {
 
-        // AI2:
-        // - The GotGeoJSON event was renamed to GotFeatures
-        // - The GeoJSONError event was renamed to LoadError
-        3: [
-            Blockly.Versioning.changeEventName('Map', 'GotGeoJSON', 'GotFeatures'),
-            Blockly.Versioning.changeEventName('Map', 'GeoJSONError', 'LoadError')
-        ]
-        // - The Rotation property was added to Map
-        ,4: "noUpgrade"
+    // AI2:
+    // - The Markers property was renamed to Features
+    // - The LoadGeoJSONFromURL method was renamed to LoadFromURL
+    // - The FeatureFromGeoJSONDescription method was renamed to FeatureFromDescription
+    2: [
+      Blockly.Versioning.changePropertyName('Map', 'Markers', 'Features'),
+      Blockly.Versioning.changeMethodName('Map', 'LoadGeoJSONFromUrl', 'LoadFromURL'),
+      Blockly.Versioning.changeMethodName('Map', 'FeatureFromGeoJSONDescription', 'FeatureFromDescription')
+    ],
 
-    }, // End Map upgraders
+    // AI2:
+    // - The GotGeoJSON event was renamed to GotFeatures
+    // - The GeoJSONError event was renamed to LoadError
+    3: [
+      Blockly.Versioning.changeEventName('Map', 'GotGeoJSON', 'GotFeatures'),
+      Blockly.Versioning.changeEventName('Map', 'GeoJSONError', 'LoadError')
+    ],
 
-    "Marker": {
-        // AI2:
-        // - The ShowShadow property was removed
-        2: "noUpgrade"
-    }, // End Marker upgraders
+    // AI2:
+    // - The Rotation property was added to Map
+    4: "noUpgrade",
+
+    // AI2:
+    // - The ScaleUnits and ShowScale properties were added to Map
+    5: "noUpgrade"
+
+  }, // End Map upgraders
+
+  "Circle": {
+    // AI2:
+    // - The FillOpacity and StrokeOpacity properties were added
+    2: "noUpgrade"
+  }, // End Circle upgraders
+
+  "LineString": {
+    // AI2:
+    // - The StrokeOpacity property was added
+    2: "noUpgrade"
+  }, // End LineString upgraders
+
+  "Marker": {
+    // AI2:
+    // - The ShowShadow property was removed
+    2: "noUpgrade",
+
+    // AI2:
+    // - The FillOpacity and StrokeOpacity properties were added
+    3: "noUpgrade"
+  }, // End Marker upgraders
+
+  "Polygon": {
+    // AI2:
+    // - The FillOpacity and StrokeOpacity properties were added
+    2: "noUpgrade"
+  }, // End Polygon upgraders
+
+  "Rectangle": {
+    // AI2:
+    // - The FillOpacity and StrokeOpacity properties were added
+    2: "noUpgrade"
+  }, // End Rectangle upgraders
 
   "NearField": {
 
@@ -1878,35 +1972,9 @@ Blockly.Versioning.AllUpgradeMaps =
 
   }, // End NearField upgraders
 
-  "ListUtils": {
-    1: "noUpgrade"
-    ,2: "noUpgrade"
-    ,3: "noUpgrade"
-    ,4: "noUpgrade"
-    ,5: "noUpgrade"
-    ,6: "noUpgrade"
-  },
-
-  "DateUtils": {
-    1: "noUpgrade"
-    ,2: "noUpgrade"
-    ,3: "noUpgrade"
-    ,4: "noUpgrade"
-    ,5: "noUpgrade"
-    ,6: "noUpgrade"
-  },
-
-  "TextUtils": {
-    1: "noUpgrade"
-    ,2: "noUpgrade"
-    ,3: "noUpgrade"
-    ,4: "noUpgrade"
-    ,5: "noUpgrade"
-    ,6: "noUpgrade"
-  },
-
   "Notifier": {
-// AI1:
+
+    // AI1:
     /* From BlockSaveFile.java:
       final String NEW_ARG_WARNING = "The %s block has been changed to " +
           "expect a new cancelable argument. Please replace this block by a new one from the Notifier drawer.";
@@ -1933,32 +2001,14 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // Added a ProgressDialog, a dialog that cannot be dismissed by the user.
     // The ShowProgressDialog will show the dialog, and DismissProgressDialog is the only way to dismiss it
-    4: "noUpgrade"
+    4: "noUpgrade",
 
-    ,5: [  // Set the default argument for parameter
-         Blockly.Versioning.addDefaultMethodArgument("Notifier", "ShowAlert", 1,
-              '<block type="logic_boolean">' +
-              '  <field name="BOOL">TRUE</field>' +
-              '</block>'),
-          Blockly.Versioning.addDefaultMethodArgument("Notifier", "ShowAlert", 2,
-              '<block type="math_number">' +
-              '  <field name="NUM">1</field>' +
-              '</block>'),
-          Blockly.Versioning.addDefaultMethodArgument("Notifier", "ShowChooseDialog", 5,
-              '<block type="math_number">' +
-              '  <field name="NUM">1</field>' +
-              '</block>')
-          ,Blockly.Versioning.addDefaultMethodArgument("Notifier", "ShowMessageDialog", 3,
-              '<block type="math_number">' +
-              '  <field name="NUM">1</field>' +
-              '</block>')
-      ]
-      // don't forget to bump-up the YaVersion.YOUNG_ANDROID_VERSION
-      // added style(0) for circular or horizontal (1)
-    ,6: Blockly.Versioning.addDefaultMethodArgument("Notifier", "ShowProgressDialog", 2,
-          '<block type="math_number">' +
-          '  <field name="NUM">0</field>' +
-          '</block>')
+    // Added TextInputCanceled & ChoosingCanceled event
+    5: "noUpgrade",
+
+    // Added a PasswordDialog for masked text input.
+    6: "noUpgrade"
+
   }, // End Notifier upgraders
 
   "NxtColorSensor": {
@@ -2092,7 +2142,10 @@ Blockly.Versioning.AllUpgradeMaps =
     2: "ai1CantDoUpgrade", // Just indicates we couldn't do upgrade even if we wanted to
 
     // RequestFocus was added
-    3: "noUpgrade"
+    3: "noUpgrade",
+
+    // PasswordVisible was added
+    4: "noUpgrade"
 
   }, // End PasswordTextBox upgraders
 
@@ -2103,7 +2156,10 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // AI2: The step sensing algorithm was updated to be more accurate.
     // The GPS related functionality was removed.
-    2: "noUpgrade"
+    2: "noUpgrade",
+
+    // AI2: The Resume and Pause methods were removed.
+    3: "noUpgrade"
 
   }, // End PhoneCall upgraders
 
@@ -2112,7 +2168,9 @@ Blockly.Versioning.AllUpgradeMaps =
     // AI2: - The PhoneCallStarted event was added.
     // - The PhoneCallEnded event was added.
     // - The IncomingCallAnswered event was added.
-    2: "noUpgrade"
+    2: "noUpgrade",
+
+    3: 'noUpgrade'
 
   }, // End PhoneCall upgraders
 
@@ -2268,11 +2326,35 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // For FORM_COMPONENT_VERSION 20:
     // - The Screen1.ShowListsAsJson property was added and no block needs to be changed.
-    20: "noUpgrade"
-    ,21: "noUpgrade"
-    ,22: "noUpgrade"
-    ,23: "noUpgrade"
-    ,24: "noUpgrade"
+    20: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 21:
+    // - The AccentColor, PrimaryColor, PrimaryColorDark, and Theme properties were added to Screen, and no block needs to be changed.
+    21: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 22:
+    // - The Classic option was added to the Theme property. No blocks need to be changed
+    22: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 23:
+    // - The ActionBar designer property was hidden and tied to the Theme property. No blocks need to be changed.
+    23: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 24:
+    // - The AskForPermissions method, PermissionDenied event, and PermissionGranted event were added. No blocks need to be changed.
+    24: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 25:
+    // - Sizing default value changed from Fixed to Responsive
+    25: "noUpgrade",
+
+    // For FORM_COMPONENT_VERISON 26:
+    // - ShowListsAsJson default value changed from False to True
+    26: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 27:
+    // - Platform and PlatformVersion read-only blocks were added
+    27: "noUpgrade"
 
 
   }, // End Screen
@@ -2325,7 +2407,10 @@ Blockly.Versioning.AllUpgradeMaps =
   "SpeechRecognizer": {
 
     //This is initial version. Placeholder for future upgrades
-    1: "noUpgrade"
+    1: "noUpgrade",
+    // The Stop method was added. No blocks need to be changed.
+    // The SpeechRecognizer.UseLegacy property was added.
+    2: "noUpgrade"
 
   }, // End SpeechRecognizer upgraders
 
@@ -2364,7 +2449,10 @@ Blockly.Versioning.AllUpgradeMaps =
     4: "noUpgrade",
 
     // AI2: Added RequestFocus method
-    5: "noUpgrade"
+    5: "noUpgrade",
+
+    // AI3: Added ReadOnly property
+    6: "noUpgrade"
 
   }, // End TextBox upgraders
 
@@ -2379,7 +2467,9 @@ Blockly.Versioning.AllUpgradeMaps =
     /* From BlockSaveFile.java:
       handlePropertyTypeChange(componentName, "ReceivingEnabled", "receivingEnabled is now an integer in the range 1-3 instead of a boolean");
     */
-    3: "ai1CantDoUpgrade" // Just indicates we couldn't do upgrade even if we wanted to
+    3: "ai1CantDoUpgrade", // Just indicates we couldn't do upgrade even if we wanted to
+
+    4: 'noUpgrade'
 
   }, // End Texting
 
@@ -2419,7 +2509,10 @@ Blockly.Versioning.AllUpgradeMaps =
   "TinyDB": {
 
     //This is initial version. Placeholder for future upgrades
-    1: "noUpgrade"
+    1: "noUpgrade",
+
+    //Added Property: Namespace
+    2: "noUpgrade"
 
   }, // End TinyDB upgraders
 
@@ -2520,7 +2613,10 @@ Blockly.Versioning.AllUpgradeMaps =
     4: "noUpgrade",
 
     // AI2: The Volume property (setter only) was added to the VideoPlayer.
-    5: "noUpgrade"
+    5: "noUpgrade",
+
+    // AI2: Stop method was added to the VideoPlayer.
+    6: "noUpgrade"
 
   }, // End VideoPlayer upgraders
 
@@ -2561,12 +2657,18 @@ Blockly.Versioning.AllUpgradeMaps =
     3: "ai1CantDoUpgrade", // Just indicates we couldn't do upgrade even if we wanted to
 
     // AI2: Added method XMLTextDecode
-    4: "noUpgrade"
-      // AI2: Added method UriDecode
-    ,5: "noUpgrade"
+    4: "noUpgrade",
+
+    // AI2: Added method UriDecode
+    5: "noUpgrade",
+
+    // AI2: Added property Timeout and event TimedOut
+    6: "noUpgrade",
+
+    // AI2: Added methods JsonTextDecodeWithDictionaries and XMLTextDecodeAsDictionary
+    7: "noUpgrade"
 
   }, // End Web upgraders
-
 
   "WebViewer": {
 
@@ -2585,15 +2687,29 @@ Blockly.Versioning.AllUpgradeMaps =
     5: "noUpgrade",
 
     // AI2: Added ClearCaches method
-    6: "noUpgrade"
-    ,7: "noUpgrade"
+    6: "noUpgrade",
+
+    // AI2: Added WebViewStringChange
+    7: "noUpgrade",
+
+    //AI2: Added PageLoaded
+    8: "noUpgrade",
+
+    // AI2: Added BeforePageLoad event and Stop, Reload, and ClearCookies methods
+    9: "noUpgrade",
+
+    // AI2: Added ErrorOccurred event and RunJavaScript method
+    10: "noUpgrade"
 
   }, // End WebViewer upgraders
 
   "YandexTranslate": {
 
     //This is initial version. Placeholder for future upgrades
-    1: "noUpgrade"
+    1: "noUpgrade",
+
+    // AI2: ApiKey property added
+    2: "noUpgrade"
 
   } // End YandexTranslate upgraders
 

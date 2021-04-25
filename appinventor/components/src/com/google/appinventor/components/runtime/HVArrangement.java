@@ -8,10 +8,10 @@ package com.google.appinventor.components.runtime;
 
 import android.app.Activity;
 
-import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+
 import android.os.Handler;
-import android.support.v4.view.ViewCompat;
+
 import android.util.Log;
 
 import android.view.View;
@@ -21,27 +21,31 @@ import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ScrollView;
 
-import com.google.appinventor.components.annotations.*;
+import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.PropertyCategory;
+import com.google.appinventor.components.annotations.SimpleObject;
+import com.google.appinventor.components.annotations.SimpleProperty;
 
 import com.google.appinventor.components.common.ComponentConstants;
 import com.google.appinventor.components.common.PropertyTypeConstants;
+
 import com.google.appinventor.components.runtime.util.AlignmentUtil;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.ViewUtil;
-import java.io.IOException;
 
+import java.io.IOException;
 
 /**
  * A container for components that arranges them linearly, either
  * horizontally or vertically.
  *
  * @author sharon@google.com (Sharon Perl)
+ * @author kkashi01@gmail.com (Hossein Amerkashi) (added Image and BackgroundColors)
  */
 
 @SimpleObject
-public class HVArrangement extends AndroidViewComponent implements Component, ComponentContainer
-,View.OnClickListener, View.OnLongClickListener{
+public class HVArrangement extends AndroidViewComponent implements Component, ComponentContainer {
   private final Activity context;
 
   // Layout
@@ -66,11 +70,8 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
   private Drawable defaultButtonDrawable;
 
   private final Handler androidUIHandler = new Handler();
-  private boolean isCard = false;
+
   private static final String LOG_TAG = "HVArrangement";
-  private boolean useRoundCorner = true;
-  android.widget.LinearLayout.LayoutParams myLayoutParams;
-  private int size=5;
 
   /**
    * Creates a new HVArrangement component.
@@ -79,7 +80,7 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
    * @param orientation one of
    *     {@link ComponentConstants#LAYOUT_ORIENTATION_HORIZONTAL}.
    *     {@link ComponentConstants#LAYOUT_ORIENTATION_VERTICAL}
-   */
+  */
   public HVArrangement(ComponentContainer container, int orientation, boolean scrollable) {
     super(container);
     context = container.$context();
@@ -87,12 +88,10 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
     this.orientation = orientation;
     this.scrollable = scrollable;
     viewLayout = new LinearLayout(context, orientation,
-            ComponentConstants.EMPTY_HV_ARRANGEMENT_WIDTH,
-            ComponentConstants.EMPTY_HV_ARRANGEMENT_HEIGHT);
-
+        ComponentConstants.EMPTY_HV_ARRANGEMENT_WIDTH,
+        ComponentConstants.EMPTY_HV_ARRANGEMENT_HEIGHT);
 
     viewLayout.setBaselineAligned(false);
-
     alignmentSetter = new AlignmentUtil(viewLayout);
     horizontalAlignment = ComponentConstants.HORIZONTAL_ALIGNMENT_DEFAULT;
     verticalAlignment = ComponentConstants.VERTICAL_ALIGNMENT_DEFAULT;
@@ -101,42 +100,31 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
 
     if (scrollable) {
       switch (orientation) {
-        case LAYOUT_ORIENTATION_VERTICAL:
-          Log.d(LOG_TAG, "Setting up frameContainer = ScrollView()");
-          frameContainer = new ScrollView(context);
-          break;
-        case LAYOUT_ORIENTATION_HORIZONTAL:
-          Log.d(LOG_TAG, "Setting up frameContainer = HorizontalScrollView()");
-          frameContainer = new HorizontalScrollView(context);
-          break;
+      case LAYOUT_ORIENTATION_VERTICAL:
+        Log.d(LOG_TAG, "Setting up frameContainer = ScrollView()");
+        frameContainer = new ScrollView(context);
+        break;
+      case LAYOUT_ORIENTATION_HORIZONTAL:
+        Log.d(LOG_TAG, "Setting up frameContainer = HorizontalScrollView()");
+        frameContainer = new HorizontalScrollView(context);
+        break;
       }
     } else {
       Log.d(LOG_TAG, "Setting up frameContainer = FrameLayout()");
       frameContainer = new FrameLayout(context);
     }
 
-//    frameContainer.setLayoutParams(new ViewGroup.LayoutParams(ComponentConstants.EMPTY_HV_ARRANGEMENT_WIDTH, ComponentConstants.EMPTY_HV_ARRANGEMENT_HEIGHT));
-    myLayoutParams = new android.widget.LinearLayout.LayoutParams(
-            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
-    size = container.$form().convertDpToDensity(10);
-    myLayoutParams.setMargins(size, size/2, size, size/2);
-    frameContainer.setLayoutParams(myLayoutParams);
-
+    frameContainer.setLayoutParams(new ViewGroup.LayoutParams(ComponentConstants.EMPTY_HV_ARRANGEMENT_WIDTH, ComponentConstants.EMPTY_HV_ARRANGEMENT_HEIGHT));
     frameContainer.addView(viewLayout.getLayoutManager(), new ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT));
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.MATCH_PARENT));
 
-    frameContainer.setOnClickListener(this);
-    frameContainer.setOnLongClickListener(this);
-
-    // Save the default values in case the user wants them back later.
+      // Save the default values in case the user wants them back later.
     defaultButtonDrawable = getView().getBackground();
 
     container.$add(this);
     BackgroundColor(Component.COLOR_DEFAULT);
-//    UseRoundCorner(true);  // this initially is set to true when using IsCard
-    IsCard(false);
+
   }
 
 
@@ -168,12 +156,12 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
     if (cWidth == 0 && trycount < 2) {     // We're not really ready yet...
       final int fWidth = width;            // but give up after two tries...
       androidUIHandler.postDelayed(new Runnable() {
-        @Override
-        public void run() {
-          Log.d(LOG_TAG, "(HVArrangement)Width not stable yet... trying again");
-          setChildWidth(component, fWidth, trycount + 1);
-        }
-      }, 100);                // Try again in 1/10 of a second
+          @Override
+          public void run() {
+            Log.d(LOG_TAG, "(HVArrangement)Width not stable yet... trying again");
+            setChildWidth(component, fWidth, trycount + 1);
+          }
+        }, 100);                // Try again in 1/10 of a second
     }
     if (width <= LENGTH_PERCENT_TAG) {
       Log.d(LOG_TAG, "HVArrangement.setChildWidth(): width = " + width + " parent Width = " + cWidth + " child = " + component);
@@ -195,12 +183,12 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
     if (cHeight == 0) {         // Not ready yet...
       final int fHeight = height;
       androidUIHandler.postDelayed(new Runnable() {
-        @Override
-        public void run() {
-          Log.d(LOG_TAG, "(HVArrangement)Height not stable yet... trying again");
-          setChildHeight(component, fHeight);
-        }
-      }, 100);                // Try again in 1/10 of a second
+          @Override
+          public void run() {
+            Log.d(LOG_TAG, "(HVArrangement)Height not stable yet... trying again");
+            setChildHeight(component, fHeight);
+          }
+        }, 100);                // Try again in 1/10 of a second
     }
     if (height <= LENGTH_PERCENT_TAG) {
       height = cHeight * (- (height - LENGTH_PERCENT_TAG)) / 100;
@@ -225,26 +213,28 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
   // The numeric encodings are defined Component Constants
 
   /**
-   * Returns a number that encodes how contents of the arrangement are aligned horizontally.
+   * Returns a number that encodes how contents of the %type% are aligned horizontally.
    * The choices are: 1 = left aligned, 2 = right aligned, 3 = horizontally centered
    */
   @SimpleProperty(
-          category = PropertyCategory.APPEARANCE,
-          description = "A number that encodes how contents of the arrangement are aligned " +
-                  " horizontally. The choices are: 1 = left aligned, 2 = right aligned, " +
-                  " 3 = horizontally centered.  Alignment has no effect if the arrangement's width is " +
-                  "automatic.")
+      category = PropertyCategory.APPEARANCE,
+      description = "A number that encodes how contents of the %type% are aligned " +
+          " horizontally. The choices are: 1 = left aligned, 2 = right aligned, " +
+          " 3 = horizontally centered.  Alignment has no effect if the arrangement's width is " +
+          "automatic.")
   public int AlignHorizontal() {
     return horizontalAlignment;
   }
 
   /**
-   * Sets the horizontal alignment for contents of the arrangement
+   * A number that encodes how contents of the `%type%` are aligned horizontally. The choices
+   * are: `1` = left aligned, `2` = right aligned, `3` = horizontally centered. Alignment has no
+   * effect if the `%type%`'s {@link #Width()} is `Automatic`.
    *
    * @param alignment
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_HORIZONTAL_ALIGNMENT,
-          defaultValue = ComponentConstants.HORIZONTAL_ALIGNMENT_DEFAULT + "")
+      defaultValue = ComponentConstants.HORIZONTAL_ALIGNMENT_DEFAULT + "")
   @SimpleProperty
   public void AlignHorizontal(int alignment) {
     try {
@@ -254,32 +244,34 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
       horizontalAlignment = alignment;
     } catch (IllegalArgumentException e) {
       container.$form().dispatchErrorOccurredEvent(this, "HorizontalAlignment",
-              ErrorMessages.ERROR_BAD_VALUE_FOR_HORIZONTAL_ALIGNMENT, alignment);
+          ErrorMessages.ERROR_BAD_VALUE_FOR_HORIZONTAL_ALIGNMENT, alignment);
     }
   }
 
   /**
-   * Returns a number that encodes how contents of the arrangement are aligned vertically.
+   * Returns a number that encodes how contents of the %type% are aligned vertically.
    * The choices are: 1 = aligned at the top, 2 = vertically centered, 3 = aligned at the bottom.
    * Alignment has no effect if the arrangement's height is automatic.
    */
-  @SimpleProperty(
-          category = PropertyCategory.APPEARANCE,
-          description = "A number that encodes how the contents of the arrangement are aligned " +
-                  " vertically. The choices are: 1 = aligned at the top, 2 = vertically centered, " +
-                  "3 = aligned at the bottom.  Alignment has no effect if the arrangement's height " +
-                  "is automatic.")
+   @SimpleProperty(
+      category = PropertyCategory.APPEARANCE,
+      description = "A number that encodes how the contents of the %type% are aligned " +
+          " vertically. The choices are: 1 = aligned at the top, 2 = vertically centered, " +
+          "3 = aligned at the bottom.  Alignment has no effect if the arrangement's height " +
+          "is automatic.")
   public int AlignVertical() {
     return verticalAlignment;
   }
 
   /**
-   * Sets the vertical alignment for contents of the arrangement
+   * A number that encodes how the contents of the `%type%` are aligned vertically. The choices
+   * are: `1` = aligned at the top, `2` = aligned at the bottom, `3` = vertically centered.
+   * Alignment has no effect if the `%type%`'s {@link #Height()} is `Automatic`.
    *
    * @param alignment
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_VERTICAL_ALIGNMENT,
-          defaultValue = ComponentConstants.VERTICAL_ALIGNMENT_DEFAULT + "")
+      defaultValue = ComponentConstants.VERTICAL_ALIGNMENT_DEFAULT + "")
   @SimpleProperty
   public void AlignVertical(int alignment) {
     try {
@@ -289,127 +281,90 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
       verticalAlignment = alignment;
     } catch (IllegalArgumentException e) {
       container.$form().dispatchErrorOccurredEvent(this, "VerticalAlignment",
-              ErrorMessages.ERROR_BAD_VALUE_FOR_VERTICAL_ALIGNMENT, alignment);
+          ErrorMessages.ERROR_BAD_VALUE_FOR_VERTICAL_ALIGNMENT, alignment);
     }
   }
 
-  /**
-   * Returns the component's background color as an alpha-red-green-blue
-   * integer.
-   *
-   * @return  background RGB color with alpha
-   */
-  @SimpleProperty(category = PropertyCategory.APPEARANCE,
-          description = "Returns the component's background color")
-  public int BackgroundColor() {
-    return backgroundColor;
-  }
+    /**
+     * Returns the background color of the %type% as an alpha-red-green-blue
+     * integer.
+     *
+     * @return  background RGB color with alpha
+     */
+    @SimpleProperty(category = PropertyCategory.APPEARANCE,
+            description = "Returns the background color of the %type%")
+    public int BackgroundColor() {
+        return backgroundColor;
+    }
 
-  /**
-   * Specifies the button's background color as an alpha-red-green-blue
-   * integer.  If the parameter is {@link Component#COLOR_DEFAULT}, the
-   * original beveling is restored.  If an Image has been set, the color
-   * change will not be visible until the Image is removed.
-   *
-   * @param argb background RGB color with alpha
-   */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR,
-          defaultValue = Component.DEFAULT_VALUE_COLOR_DEFAULT)
-  @SimpleProperty(description = "Specifies the component's background color. " +
-          "The background color will not be visible if an Image is being displayed.")
-  public void BackgroundColor(int argb) {
-    backgroundColor = argb;
+    /**
+     * Specifies the background color of the %type% as an alpha-red-green-blue
+     * integer.  If an Image has been set, the color change will not be visible
+     * until the Image is removed.
+     *
+     * @internaldoc
+     * If the parameter is {@link Component#COLOR_DEFAULT}, the original beveling is restored.
+     *
+     * @param argb background RGB color with alpha
+     */
+    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COLOR,
+            defaultValue = Component.DEFAULT_VALUE_COLOR_DEFAULT)
+    @SimpleProperty(description = "Specifies the background color of the %type%. " +
+            "The background color will not be visible if an Image is being displayed.")
+    public void BackgroundColor(int argb) {
+        backgroundColor = argb;
 //        getView().setBackgroundColor(argb);
-    updateAppearance();
+        updateAppearance();
 
-  }
-
-    @SimpleProperty(description = "If set to TRUE And if this arrangement is set to IsCard, then rounded corners will be displayed" )
-    public void UseRoundCorner(boolean enabled) {
-      this.useRoundCorner = enabled;
-      IsCard(IsCard());
     }
 
-  @SimpleProperty(category = PropertyCategory.BEHAVIOR, description = "Returns True if rounded-corners is to be used for this arrangement")
-  public boolean UseRoundCorner() {
-    return this.useRoundCorner;
-  }
-
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
-  @SimpleProperty(description = "Set to true to make this a Material Card. If you don't want rounded-corners, set UseRoundCorner to false")
-  public void IsCard(boolean isCard) {
-    this.isCard = isCard;
-    if (isCard) {
-      frameContainer.setBackgroundColor(Color.WHITE);
-//      frameContainer.setBackgroundColor(Color.argb(66,247,247,247));  // api 26. Don't use
-
-      ViewCompat.setElevation(frameContainer, 25);
-
-      myLayoutParams.setMargins(size, size/2, size, size/2);
-      frameContainer.setLayoutParams(myLayoutParams);
-      frameContainer.setPadding(size, size, size, size);
-      ViewUtil.setShape(frameContainer, Color.WHITE, Color.LTGRAY, UseRoundCorner());
-    } else {
-      // remove the background box, margin, padding, margin, etc
-      ViewCompat.setElevation(frameContainer, 0);
-      frameContainer.setBackground(null);
-      frameContainer.setPadding(0, 0, 0, 0);
-      myLayoutParams.setMargins(0, 0, 0, 0);
-    }
-  }
-
-  @SimpleProperty(description = "Returns true if you have set this component to be displayed as Material Card")
-    public boolean IsCard() {
-      return isCard;
+    /**
+     * Returns the path of the background image of the `%type%`.
+     *
+     * @return  the path of the background image
+     */
+    @SimpleProperty(
+            category = PropertyCategory.APPEARANCE)
+    public String Image() {
+        return imagePath;
     }
 
+    /**
+     * Specifies the path of the background image of the `%type%`.
+     *
+     * @internaldoc
+     * <p/>See {@link com.google.appinventor.components.runtime.util.MediaUtil#determineMediaSource} for information about what
+     * a path can be.
+     *
+     * @param path  the path of the background image
+     */
+    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET, defaultValue = "")
+    @SimpleProperty(description = "Specifies the path of the background image for the %type%.  " +
+            "If there is both an Image and a BackgroundColor, only the Image will be visible.")
+    public void Image(String path) {
+        // If it's the same as on the prior call and the prior load was successful,
+        // do nothing.
+        if (path.equals(imagePath) && backgroundImageDrawable != null) {
+            return;
+        }
 
-  /**
-   * Returns the path of the button's image.
-   *
-   * @return  the path of the button's image
-   */
-  @SimpleProperty(
-          category = PropertyCategory.APPEARANCE)
-  public String Image() {
-    return imagePath;
-  }
+        imagePath = (path == null) ? "" : path;
 
-  /**
-   * Specifies the path of the button's image.
-   *
-   * <p/>See {@link com.google.appinventor.components.runtime.util.MediaUtil#determineMediaSource} for information about what
-   * a path can be.
-   *
-   * @param path  the path of the button's image
-   */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET, defaultValue = "")
-  @SimpleProperty(description = "Specifies the path of the component's image.  " +
-          "If there is both an Image and a BackgroundColor, only the Image will be visible.")
-  public void Image(String path) {
-    // If it's the same as on the prior call and the prior load was successful,
-    // do nothing.
-    if (path.equals(imagePath) && backgroundImageDrawable != null) {
-      return;
+        // Clear the prior background image.
+        backgroundImageDrawable = null;
+
+        // Load image from file.
+        if (imagePath.length() > 0) {
+            try {
+                backgroundImageDrawable = MediaUtil.getBitmapDrawable(container.$form(), imagePath);
+            } catch (IOException ioe) {
+                // Fall through with a value of null for backgroundImageDrawable.
+            }
+        }
+
+        // Update the appearance based on the new value of backgroundImageDrawable.
+        updateAppearance();
     }
-
-    imagePath = (path == null) ? "" : path;
-
-    // Clear the prior background image.
-    backgroundImageDrawable = null;
-
-    // Load image from file.
-    if (imagePath.length() > 0) {
-      try {
-        backgroundImageDrawable = MediaUtil.getBitmapDrawable(container.$form(), imagePath);
-      } catch (IOException ioe) {
-        // Fall through with a value of null for backgroundImageDrawable.
-      }
-    }
-
-    // Update the appearance based on the new value of backgroundImageDrawable.
-    updateAppearance();
-  }
 
 
   // Update appearance based on values of backgroundImageDrawable, backgroundColor and shape.
@@ -431,39 +386,6 @@ public class HVArrangement extends AndroidViewComponent implements Component, Co
       // If there is a background image
       ViewUtil.setBackgroundImage(viewLayout.getLayoutManager(), backgroundImageDrawable);
     }
-  }
-
-
-  /**
-   * Indicates a user has clicked on the button.
-   */
-  @SimpleEvent(description = "User tapped and released the component.")
-  public void Click() {
-    Log.d(LOG_TAG, "dispatcher Click was done");
-    EventDispatcher.dispatchEvent(this, "Click");
-  }
-
-  /**
-   * Indicates a user has long clicked on the button.
-   */
-  @SimpleEvent(description = "User held the component down.")
-  public boolean LongClick() {
-    Log.d(LOG_TAG, "dispatcher LongClick was done");
-    return EventDispatcher.dispatchEvent(this, "LongClick");
-  }
-
-  @Override
-  public void onClick(View view) {
-    Log.d(LOG_TAG, "Click was done");
-    Click();
-  }
-
-  @Override
-  public boolean onLongClick(View view) {
-    // Call the users Click event handler. Note that we distinguish the longclick() abstract method
-    // implementation from the LongClick() event handler method.
-    Log.d(LOG_TAG, "LongClick was done");
-    return LongClick();
   }
 
 }

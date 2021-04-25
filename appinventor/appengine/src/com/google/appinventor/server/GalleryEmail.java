@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
@@ -29,7 +26,7 @@ public class GalleryEmail {
 
     try {
         Message msg = new MimeMessage(session);
-        msg.setFrom(new InternetAddress(senderEmail, "AppyBuilder Gallery"));
+        msg.setFrom(new InternetAddress(senderEmail, "App Inventor Gallery"));
         msg.addRecipient(Message.RecipientType.TO,
          new InternetAddress(receiverEmail, receiverEmail));
         msg.setSubject(title);

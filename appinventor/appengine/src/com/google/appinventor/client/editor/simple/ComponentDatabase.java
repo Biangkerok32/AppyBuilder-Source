@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -9,7 +6,6 @@
 
 package com.google.appinventor.client.editor.simple;
 
-import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.explorer.project.ComponentDatabaseChangeListener;
 import com.google.appinventor.client.properties.json.ClientJsonParser;
 import com.google.appinventor.shared.properties.json.JSONArray;
@@ -23,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.google.appinventor.client.Ode.MESSAGES;
 
 /**
  * Database holding information of Simple components and their properties.
@@ -53,6 +50,9 @@ class ComponentDatabase implements ComponentDatabaseInterface {
     components = new HashMap<String, ComponentDefinition>();
     List<String> newComponents = new ArrayList<String>();
     for (JSONValue component : array.getElements()) {
+      if (component.asObject().get("external").asString().getString().equals("true")) {
+        continue;
+      }
       if (initComponent(component.asObject())) {
         newComponents.add(component.asObject().get("name").asString().getString());
       }
@@ -137,6 +137,26 @@ class ComponentDatabase implements ComponentDatabaseInterface {
   }
 
   @Override
+  public String getComponentVersionName(String componentName) {
+    ComponentDefinition component = components.get(componentName);
+    if (component == null) {
+      throw new ComponentNotFoundException(componentName);
+    }
+
+    return component.getVersionName();
+  }
+
+  @Override
+  public String getComponentBuildDate(String componentName) {
+    ComponentDefinition component = components.get(componentName);
+    if (component == null) {
+      throw new ComponentNotFoundException(componentName);
+    }
+
+    return component.getDateBuilt();
+  }
+
+  @Override
   public String getComponentType(String componentName){
     ComponentDefinition component = components.get(componentName);
     if(component == null){
@@ -150,8 +170,8 @@ class ComponentDatabase implements ComponentDatabaseInterface {
   public String getComponentName(String componentType) {
     for (String componentName : components.keySet()) {
       ComponentDefinition component = components.get(componentName);
-      if (component.getType() == componentType) {
-        return componentName+", version: "+component.getVersion();
+      if (componentType.equals(component.getType())) {
+        return componentName;
       }
     }
     return "";
@@ -203,8 +223,10 @@ class ComponentDatabase implements ComponentDatabaseInterface {
     if (component == null) {
       throw new ComponentNotFoundException(componentName);
     }
+
     return component.getHelpUrl();
   }
+
   @Override
   public boolean getShowOnPalette(String componentName) {
     ComponentDefinition component = components.get(componentName);
@@ -231,6 +253,15 @@ class ComponentDatabase implements ComponentDatabaseInterface {
       throw new ComponentNotFoundException(componentName);
     }
     return component.getIconName();
+  }
+
+  @Override
+  public String getLicenseName(String componentName) {
+    ComponentDefinition component = components.get(componentName);
+    if (component == null) {
+      throw new ComponentNotFoundException(componentName);
+    }
+    return component.getLicenseName();
   }
 
   @Override
@@ -310,6 +341,8 @@ class ComponentDatabase implements ComponentDatabaseInterface {
     }
     ComponentDefinition component = new ComponentDefinition(name,
         Integer.parseInt(properties.get("version").asString().getString()),
+        optString(properties.get("versionName"), ""),
+        optString(properties.get("dateBuilt"), ""),
         properties.get("type").asString().getString(),
         Boolean.valueOf(properties.get("external").asString().getString()),
         properties.get("categoryString").asString().getString(),
@@ -317,7 +350,9 @@ class ComponentDatabase implements ComponentDatabaseInterface {
         properties.containsKey("helpUrl") ? properties.get("helpUrl").asString().getString() : "",
         Boolean.valueOf(properties.get("showOnPalette").asString().getString()),
         Boolean.valueOf(properties.get("nonVisible").asString().getString()),
-        properties.get("iconName").asString().getString(), componentNode.toJson());
+        properties.get("iconName").asString().getString(),
+        properties.containsKey("licenseName") ? properties.get("licenseName").asString().getString() : "",
+        componentNode.toJson());
     findComponentProperties(component, properties.get("properties").asArray());
     findComponentBlockProperties(component, properties.get("blockProperties").asArray());
     findComponentEvents(component, properties.get("events").asArray());
@@ -326,12 +361,27 @@ class ComponentDatabase implements ComponentDatabaseInterface {
     return true;
   }
 
+  /**
+   * Extracts a string from the given value. If value is null, returns the defaultValue.
+   * @param value JSON value to process
+   * @param defaultValue Alternative value if {@code value} is not valid
+   * @return A non-null String containing either the String version of {@code value} or
+   * {@code defaultValue}
+   */
+  private String optString(JSONValue value, String defaultValue) {
+    if (value == null) {
+      return defaultValue;
+    }
+    return value.asString().getString();
+  }
+
   /*
    * Enters property information into the component descriptor.
    */
   private void findComponentProperties(ComponentDefinition component, JSONArray propertiesArray) {
     for (JSONValue propertyValue : propertiesArray.getElements()) {
       Map<String, JSONValue> properties = propertyValue.asObject().getProperties();
+
       // TODO Since older versions of extensions do not have the "editorArgs" key,
       // we check if "editorArgs" exists before parsing as a workaround. We may
       // need better approaches in future versions.
@@ -340,10 +390,11 @@ class ComponentDatabase implements ComponentDatabaseInterface {
         for (JSONValue val : properties.get("editorArgs").asArray().getElements())
           editorArgsList.add(val.asString().getString());
       }
+
       component.add(new PropertyDefinition(properties.get("name").asString().getString(),
-              properties.get("defaultValue").asString().getString(),
-              properties.get("editorType").asString().getString(),
-              editorArgsList.toArray(new String[0])));
+          properties.get("defaultValue").asString().getString(),
+          properties.get("editorType").asString().getString(),
+          editorArgsList.toArray(new String[0])));
     }
   }
 
@@ -450,8 +501,8 @@ class ComponentDatabase implements ComponentDatabaseInterface {
   private boolean fireBeforeComponentsRemoved(List<String> componentTypes) {
     boolean result = true;
     for (ComponentDatabaseChangeListener listener : copyComponentDatbaseChangeListeners()) {
-        result = result & listener.beforeComponentTypeRemoved(componentTypes);
-      }
+      result = result & listener.beforeComponentTypeRemoved(componentTypes);
+    }
     return result;
   }
 
@@ -463,7 +514,7 @@ class ComponentDatabase implements ComponentDatabaseInterface {
 
   private void fireResetDatabase() {
     for (ComponentDatabaseChangeListener listener : copyComponentDatbaseChangeListeners()) {
-      listener.onResetDatabase();;
+      listener.onResetDatabase();
     }
   }
 

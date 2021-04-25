@@ -64,7 +64,7 @@ goog.async.AnimationDelay = function(listener, opt_window, opt_handler) {
   /**
    * Identifier of the active delay timeout, or event listener,
    * or null when inactive.
-   * @private {goog.events.Key|number}
+   * @private {?goog.events.Key|number}
    */
   this.id_ = null;
 
@@ -156,6 +156,16 @@ goog.async.AnimationDelay.prototype.start = function() {
         // Prior to Firefox 13, Gecko passed a non-standard parameter
         // to the callback that we want to ignore.
         goog.functions.lock(this.callback_), goog.async.AnimationDelay.TIMEOUT);
+  }
+};
+
+
+/**
+ * Starts the delay timer if it's not already active.
+ */
+goog.async.AnimationDelay.prototype.startIfNotActive = function() {
+  if (!this.isActive()) {
+    this.start();
   }
 };
 

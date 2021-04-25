@@ -1,13 +1,12 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.server.storage;
+
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Holds the singleton StorageIo subclass object. We introduce this class
@@ -18,8 +17,19 @@ package com.google.appinventor.server.storage;
  *
  */
 public class StorageIoInstanceHolder {
-  public static final StorageIo INSTANCE = new ObjectifyStorageIo();
+  private static StorageIo INSTANCE;
   
   private StorageIoInstanceHolder() {} // not to be instantiated
-    
+
+  public static StorageIo getInstance() {
+    if (INSTANCE == null) {
+      INSTANCE = new ObjectifyStorageIo();
+    }
+    return INSTANCE;
+  }
+
+  @VisibleForTesting
+  public static void setInstance(StorageIo instance) {
+    INSTANCE = instance;
+  }
 }

@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2018 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -19,12 +16,15 @@ public class ComponentConstants {
   }
 
   /**
+   * App constants
+   */
+  public static final int APP_INVENTOR_MIN_SDK = 7;
+
+  /**
    * Layout constants.
    */
   public static final int LAYOUT_ORIENTATION_HORIZONTAL = 0;
   public static final int LAYOUT_ORIENTATION_VERTICAL = 1;
-  public static final int APP_INVENTOR_MIN_SDK = 14;
-  public static final String DEFAULT_PRIMARY_COLOR = "&HFF3F51B5";
 
   public static final int DEFAULT_ROW_COLUMN = -1;
 
@@ -67,37 +67,6 @@ public class ComponentConstants {
   public static final int TEXT_RECEIVING_FOREGROUND = 2;
   public static final int TEXT_RECEIVING_ALWAYS = 3;
 
-  public static final int FB_RIGHT_BOTTOM = 0;
-  public static final int FB_RIGHT_TOP = 1;
-  public static final int FB_LEFT_BOTTOM = 2;
-  public static final int FB_LEFT_TOP = 3;
-  public static final int FB_TOP_CENTER = 4;
-  public static final int FB_BOTTOM_CENTER = 5;
-
-  public static final int SORT_ORDER_NONE = 0;
-  public static final int SORT_ORDER_ASCENDING = 1;
-  public static final int SORT_ORDER_DESCENDING = -1;
-
-  //Gender
-  public static final String GENDER_ALL = "ALL";
-  public static final String GENDER_FEMALE = "FEMALE";
-  public static final String GENDER_MALE = "MALE";
-
-  // Android API Level
-  public static final String API_14 = "API 14";
-  public static final String API_15 = "API 15";
-  public static final String API_16 = "API 16";
-  public static final String API_17 = "API 17";
-  public static final String API_18 = "API 18";
-  public static final String API_19 = "API 19";
-  public static final String API_20 = "API 20";
-  public static final String API_21 = "API 21";
-  public static final String API_22 = "API 22";
-  public static final String API_23 = "API 23";
-  public static final String API_24 = "API 24";
-  public static final String API_25 = "API 25";
-  public static final String API_26 = "API 26";
-
   /**
    * ListView component.
    */
@@ -111,6 +80,14 @@ public class ComponentConstants {
 
   public static boolean SCROLLABLE_ARRANGEMENT = true;
   public static boolean NONSCROLLABLE_ARRANGEMENT = false;
+
+  /**
+   * Themeing
+   */
+  public static final String DEFAULT_THEME = "Classic";
+  public static final String DEFAULT_PRIMARY_COLOR = "&HFF3F51B5";
+  public static final String DEFAULT_PRIMARY_DARK_COLOR = "&HFF303F9F";
+  public static final String DEFAULT_ACCENT_COLOR = "&HFFFF4081";
 
   /**
    * Map Components

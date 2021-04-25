@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -59,14 +56,13 @@ public class OdeAuthFilter implements Filter {
   private static Crypter crypter = null; // accessed through getCrypter only
   private static final Object crypterSync = new Object();
 
-  private final StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+  private final StorageIo storageIo = StorageIoInstanceHolder.getInstance();
 
   // Whether this server should use a whitelist to determine who can
   // access it. Value is specified in the <system-properties> section
   // of appengine-web.xml.
   @VisibleForTesting
   static final Flag<Boolean> useWhitelist = Flag.createFlag("use.whitelist", false);
-
   static final Flag<String> sessionKeyFile = Flag.createFlag("session.keyfile", "WEB-INF/authkey");
   static final Flag<Integer> idleTimeout = Flag.createFlag("session.idletimeout", 120);
   static final Flag<Integer> renewTime = Flag.createFlag("session.renew", 30);
@@ -158,7 +154,7 @@ public class OdeAuthFilter implements Filter {
       // but the userId no longer exists. It is then automatically created
       // in code called before here, but the e-mail address is not set. So
       // we error out here.
-      response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+      response.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
       return;
     }
 
@@ -185,7 +181,7 @@ public class OdeAuthFilter implements Filter {
         if (DEBUG) {
           LOG.info("Renewing the authentication Cookie");
         }
-        Cookie cook = new Cookie("AppyBuilder", newCookie);
+        Cookie cook = new Cookie("AppInventor", newCookie);
         cook.setPath("/");
         response.addCookie(cook);
       }
@@ -201,13 +197,11 @@ public class OdeAuthFilter implements Filter {
     return storageIo.checkWhiteList(localUser.getUserEmail());
   }
 
-
-
   @VisibleForTesting
   void writeWhitelistErrorMessage(HttpServletResponse response) throws IOException {
     response.setContentType("text/plain; charset=utf-8");
     PrintWriter out = response.getWriter();
-    out.print("You are attempting to connect to AppyBuilder service with the login ID:\n\n" +
+    out.print("You are attempting to connect to this App Inventor service with the login ID:\n\n" +
         localUser.getUserEmail() + "\n\nThat ID has not been authorized to use this service.  " +
         "If you believe that you were in fact given authorization, you should contact the " +
         "service operator.");

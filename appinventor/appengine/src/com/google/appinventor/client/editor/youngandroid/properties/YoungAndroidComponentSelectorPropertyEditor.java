@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -10,16 +7,18 @@
 package com.google.appinventor.client.editor.youngandroid.properties;
 
 import static com.google.appinventor.client.Ode.MESSAGES;
+
 import com.google.appinventor.client.editor.simple.components.FormChangeListener;
 import com.google.appinventor.client.editor.simple.components.MockComponent;
 import com.google.appinventor.client.editor.youngandroid.YaFormEditor;
 import com.google.appinventor.client.widgets.properties.AdditionalChoicePropertyEditor;
+import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.DeferredCommand;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
-
 import java.util.Set;
 
 /**
@@ -66,6 +65,12 @@ public final class YoungAndroidComponentSelectorPropertyEditor
     componentsList = new ListBox();
     componentsList.setVisibleItemCount(10);
     componentsList.setWidth("100%");
+    componentsList.addChangeHandler(new ChangeHandler() {
+      @Override
+      public void onChange(ChangeEvent event) {
+        setOkButtonEnabled(true);
+      }
+    });
     selectorPanel.add(componentsList);
     selectorPanel.setWidth("100%");
 
@@ -136,13 +141,20 @@ public final class YoungAndroidComponentSelectorPropertyEditor
 
   @Override
   protected void openAdditionalChoiceDialog() {
-    choices.selectValue(property.getValue());
+    if (!isMultipleValues()) {
+      choices.selectValue(property.getValue());
+    } else {
+      setOkButtonEnabled(false);
+    }
     super.openAdditionalChoiceDialog();
     componentsList.setFocus(true);
   }
 
   @Override
   protected String getPropertyValueSummary() {
+    if (isMultipleValues()) {
+      return MESSAGES.multipleValues();
+    }
     String value = property.getValue();
     if (choices.containsValue(value)) {
       return choices.getDisplayItemForValue(value);
@@ -157,7 +169,9 @@ public final class YoungAndroidComponentSelectorPropertyEditor
       Window.alert(MESSAGES.noComponentSelected());
       return false;
     }
-    property.setValue(choices.getValueAtIndex(selected));
+    boolean multiple = isMultipleValues();
+    setMultipleValues(false);
+    property.setValue(choices.getValueAtIndex(selected), multiple);
     return true;
   }
 

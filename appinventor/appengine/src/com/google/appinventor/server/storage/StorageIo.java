@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -114,48 +111,6 @@ public interface StorageIo {
   String loadSettings(String userId);
 
   /**
-   * Sets the stored name for user with id userId
-   *
-   */
-  void setUserName(String userId, String name);
-
-  /**
-   * Returns a string with the user's name.
-   *
-   * @param userId user id
-   * @return name
-   */
-  String getUserName(String userId);
-
-  /**
-   * Returns a string with the user's name.
-   *
-   * @param userId user id
-   * @return name
-   */
-  String getUserLink(String userId);
-
-  /**
-   * Sets the stored link for user with id userId
-   *
-   */
-  void setUserLink(String userId, String link);
-
-  /**
-   * Returns the email notification frequency
-   *
-   * @param userId user id
-   * @return emailFrequency email frequency
-   */
-  int getUserEmailFrequency(String userId);
-
-  /**
-   * Sets the stored email notification frequency for user with id userId
-   *
-   */
-  void setUserEmailFrequency(String userId, int emailFrequency);
-
-  /**
    * Stores a string with the user's settings.
    *
    * @param userId user ID
@@ -188,28 +143,21 @@ public interface StorageIo {
   void deleteProject(String userId, long projectId);
 
   /**
+   * Sets the bit true and moves the project to trash.
+   *
+   * @param userId user ID
+   * @param projectId project ID
+   * @param flag
+   */
+  void setMoveToTrashFlag(final String userId, final long projectId, boolean flag);
+
+  /**
    * Returns an array with the user's projects.
    *
    * @param userId  user ID
    * @return  list of projects
    */
   List<Long> getProjects(String userId);
-
-  /**
-   * sets a projects gallery id when it is published
-   * @param userId a user Id (the request is made on behalf of this user)*
-   * @param projectId project ID
-   * @param galleryId gallery ID
-   */
-  void setProjectGalleryId(final String userId, final long projectId,final long galleryId);
-
-   /**
-   * sets a projects attribution id when it is opened from a gallery project
-   * @param userId a user Id (the request is made on behalf of this user)*
-   * @param projectId project ID
-   * @param attributionId attribution ID
-   */
-  void setProjectAttributionId(final String userId, final long projectId,final long attributionId);
 
   /**
    * Returns a string with the project settings.
@@ -297,7 +245,6 @@ public interface StorageIo {
    *
    * @return long milliseconds
    */
-//  long getGalleryId(String userId, long projectId);
 
   // Non-project-specific file management
 
@@ -430,22 +377,6 @@ public interface StorageIo {
    * @return  list of output file ID
    */
   List<String> getProjectOutputFiles(String userId, long projectId);
-
-  /**
-   * Returns the gallery id for a project.
-   * @param projectId  project ID
-   *
-   * @return  list of output file ID
-   */
-  long getProjectGalleryId(String userId, final long projectId);
-
-   /**
-   * Returns the attribution id for a project-- the app it was copied/remixed from
-   * @param projectId  project ID
-   *
-   * @return galleryId
-   */
-  long getProjectAttributionId(final long projectId);
 
   /**
    * Uploads a file.
@@ -593,8 +524,6 @@ public interface StorageIo {
     final boolean forGallery,
     final boolean fatalError) throws IOException;
 
-  ProjectSourceZip exportProjectSourceScreenZip(String userId, long projectId,
-                                                @Nullable String zipName) throws IOException;
   /**
    * Find a user's id given their email address. Note that this query is case
    * sensitive!
@@ -660,5 +589,66 @@ public interface StorageIo {
 
   List<AdminUser> searchUsers(String partialEmail);
   void storeUser(AdminUser user) throws AdminInterfaceException;
+
+  /**
+   * There are two kinds of backpacks. User backpacks, which are
+   * stored with the user's personal files (which today is just the
+   * backpack and the android keystore used for signing applications.
+   * The second kind of backpack is a shared backpack. It is
+   * identified by a uuid.  This code is associated with the shared
+   * backpack. Shared backpacks are used when a person is logged in
+   * via the SSO mechanism. It can optionally specify a backpack to
+   * use. If it doesn't specify a backpack, then the normal user
+   * specific version is used.
+   *
+   * @param backPackId uuid used to idenfity this backpack
+   * @return the contents of the backpack as an XML encoded string
+   */
+
+  public String downloadBackpack(String backPackId);
+
+  /**
+   * Used to upload a shared backpack Note: This code will over-write
+   * whatever contents is already stored in the the backpack. It is
+   * the responsibility of our caller to merge contents if desired.
+   *
+   * @param backPackId The uuid of the shared backpack to store
+   * @param String content the new contents of the backpack
+   */
+
+  public void uploadBackpack(String backPackId, String content);
+
+  /**
+   * Store the status of a pending build. We used to poll the buildserver
+   * for the progress of a build. However that was never correct as while
+   * polling you would likely wind up talking to a different buildserver
+   * then you originally started with! So now the buildserver does a callback
+   * to the server indicating progress. Here is where we store that
+   * progress. The reason we do this in this module is because we have
+   * different versions of storageio for our three (so far) backends, the
+   * App Engine based version, the stand alone version and the "scale-able"
+   * version. Each version will likely want to store this information in
+   * a different fashion.
+   *
+   * Note: The App Engine version uses memcache and if memcache isn't
+   * available (yes, it can be down!) then we cheat and just return
+   * 50 (for 50%).
+   *
+   */
+
+  public void storeBuildStatus(String userId, long projectId, int progress);
+
+  public int getBuildStatus(String userId, long projectId);
+
+  /**
+   * Checks that the user identified by {@code userId} has a reference to the project identified
+   * by {@code projectId}. If a corresponding UserProjectData is not found, this function throws
+   * a SecurityException to indicate unauthorized access.
+   *
+   * @param userId id for the user
+   * @param projectId id for the project
+   * @throws SecurityException if the user doesn't have access to the project
+   */
+  void assertUserHasProject(String userId, long projectId);
 
 }

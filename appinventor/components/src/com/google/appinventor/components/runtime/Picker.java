@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -51,9 +48,9 @@ public abstract class Picker extends ButtonBase implements ActivityResultListene
   // Functions
 
   /**
-   * Opens the picker, as though the user clicked on it.
+   * Opens the `%type%`, as though the user clicked on it.
    */
-  @SimpleFunction(description = "Opens the picker, as though the user clicked on it.")
+  @SimpleFunction(description = "Opens the %type%, as though the user clicked on it.")
   public void Open() {
     click();
   }
@@ -61,9 +58,9 @@ public abstract class Picker extends ButtonBase implements ActivityResultListene
   // Events
 
   /**
-   * Event to raise when the button of the component is clicked or the list is shown
-   * using the Open block.  This event occurs before the list of items is displayed, and 
-   * can be used to prepare the list before it is shown.
+   * Event to raise when the `%type%` is clicked or the picker is shown
+   * using the {@link #Open()} method.  This event occurs before the picker is displayed, and
+   * can be used to prepare the picker before it is shown.
    */
   @SimpleEvent
   public void BeforePicking() {
@@ -71,7 +68,7 @@ public abstract class Picker extends ButtonBase implements ActivityResultListene
   }
 
   /**
-   * Event to be raised after the picker activity returns its
+   * Event to be raised after the `%type%` activity returns its
    * result and the properties have been filled in.
    */
   @SimpleEvent

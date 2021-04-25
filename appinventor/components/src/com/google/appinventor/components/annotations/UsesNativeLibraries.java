@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -26,8 +23,10 @@ public @interface UsesNativeLibraries {
   /**
    * The names of the libraries separated by commas. Filenames of native libraries targeted at
    * Armeabi-v7A must end (after name but before the file extension) with a suffix
-   * defined in Compiler.java ("-v7a").
+   * defined in Compiler.java ("-v7a") the same goes for v8a libraries ("-v8a").
    */
   String libraries() default "";
   String v7aLibraries() default "";
+  String v8aLibraries() default "";
+  String x86_64Libraries() default "";
 }

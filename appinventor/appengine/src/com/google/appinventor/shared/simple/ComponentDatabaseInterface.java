@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -30,6 +27,8 @@ public interface ComponentDatabaseInterface {
   public static class ComponentDefinition {
     private final String name;
     private final int version;
+    private final String versionName;
+    private final String dateBuilt;
     private final String type;
     private final boolean external;
     private final String categoryString;
@@ -44,13 +43,17 @@ public interface ComponentDatabaseInterface {
     private final Map<String, String> propertiesTypesByName;
     private final boolean nonVisible;
     private final String iconName;
+    private final String licenseName;
     private final String typeDescription;
 
-    public ComponentDefinition(String name, int version, String type, boolean external,
+    public ComponentDefinition(String name, int version, String versionName, String dateBuilt, String type, boolean external,
               String categoryString, String helpString, String helpUrl,
-              boolean showOnPalette, boolean nonVisible, String iconName, String typeDescription) {
+              boolean showOnPalette, boolean nonVisible, String iconName,
+              String licenseName, String typeDescription) {
       this.name = name;
       this.version = version;
+      this.versionName = versionName;
+      this.dateBuilt = dateBuilt;
       this.type = type;
       this.external = external;
       this.categoryString = categoryString;
@@ -65,6 +68,7 @@ public interface ComponentDatabaseInterface {
       this.propertiesTypesByName = new HashMap<String, String>();
       this.nonVisible = nonVisible;
       this.iconName = iconName;
+      this.licenseName = licenseName;
       this.typeDescription = typeDescription;
     }
 
@@ -93,6 +97,14 @@ public interface ComponentDatabaseInterface {
       return version;
     }
 
+    public String getVersionName() {
+      return versionName;
+    }
+
+    public String getDateBuilt() {
+      return dateBuilt;
+    }
+
     public String getType() {
       return type;
     }
@@ -108,6 +120,7 @@ public interface ComponentDatabaseInterface {
     public String getHelpString() {
       return helpString;
     }
+
     public String getHelpUrl() { return helpUrl; }
 
     public boolean isShowOnPalette() {
@@ -144,6 +157,10 @@ public interface ComponentDatabaseInterface {
 
     public String getIconName() {
       return iconName;
+    }
+
+    public String getLicenseName() {
+      return licenseName;
     }
 
     public String getTypeDescription() {
@@ -190,6 +207,7 @@ public interface ComponentDatabaseInterface {
     public String getEditorType() {
       return editorType;
     }
+
     public String[] getEditorArgs() {
       return editorArgs;
     }
@@ -362,6 +380,22 @@ public interface ComponentDatabaseInterface {
   int getComponentVersion(String componentName);
 
   /**
+   * Returns the version name of a component.
+   *
+   * @param componentName  name of the component to query
+   * @return  the component version name, or the empty string if none is provided
+   */
+  String getComponentVersionName(String componentName);
+
+  /**
+   * Returns the build date of a component.
+   *
+   * @param componentName  mame of the component to query
+   * @return  the component build date, or the empty string if non is provided
+   */
+  String getComponentBuildDate(String componentName);
+
+  /**
    * Returns the String version of a component's category.  Note that this
    * is the result of calling getString() on a ComponentCategory, not the
    * result of calling getName().  For example, for the ComponentCategory
@@ -406,6 +440,7 @@ public interface ComponentDatabaseInterface {
    * @return optional URL to external documentation for a component
    */
   String getHelpUrl(String componentName);
+
   /**
    * Returns whether the component with this name should be shown on the
    * palette.  As the time this is written (2/22/10), the only component
@@ -432,6 +467,12 @@ public interface ComponentDatabaseInterface {
    * icon to be shown in the Designer
    */
   String getIconName(String componentName);
+
+  /**
+   * Returns the name of the license file used by the component. Intended for use
+   * by external components.
+   */
+  String getLicenseName(String componentName);
 
   /**
    * Returns a list of a component's property definitions.

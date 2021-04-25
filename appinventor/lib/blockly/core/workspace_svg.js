@@ -525,13 +525,13 @@ Blockly.WorkspaceSvg.prototype.resizeContents = function() {
     return;
   }
   this.pendingResize_ = setTimeout((function() {
-  if (this.scrollbar) {
-    // TODO(picklesrus): Once rachel-fenichel's scrollbar refactoring
-    // is complete, call the method that only resizes scrollbar
-    // based on contents.
-    this.scrollbar.resize();
-  }
-  this.updateInverseScreenCTM();
+    if (this.scrollbar) {
+      // TODO(picklesrus): Once rachel-fenichel's scrollbar refactoring
+      // is complete, call the method that only resizes scrollbar
+      // based on contents.
+      this.scrollbar.resize();
+    }
+    this.updateInverseScreenCTM();
     this.pendingResize_ = undefined;
   }).bind(this));
 };
@@ -1194,13 +1194,11 @@ Blockly.WorkspaceSvg.prototype.showContextMenu_ = function(e) {
       if (deleteList.length < 2 ) {
         deleteNext();
       } else {
-        Blockly.confirm(Blockly.Msg.DELETE_ALL_BLOCKS.
-            replace('%1', deleteList.length),
-            function(ok) {
-              if (ok) {
-                deleteNext();
-              }
-            });
+        Blockly.confirmDeletion(function(confirmedDelete) {
+          if (confirmedDelete) {
+            deleteNext();
+          }
+        });
       }
     }
   };

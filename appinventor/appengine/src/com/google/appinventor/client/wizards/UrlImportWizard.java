@@ -5,6 +5,11 @@
 
 package com.google.appinventor.client.wizards;
 
+import static com.google.appinventor.client.Ode.MESSAGES;
+
+import java.util.HashSet;
+import java.util.Set;
+
 import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
 import com.google.appinventor.client.explorer.project.Project;
@@ -19,11 +24,6 @@ import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
-
-import java.util.HashSet;
-import java.util.Set;
-
-import static com.google.appinventor.client.Ode.MESSAGES;
 
 public class UrlImportWizard extends Wizard {
   private final Set<OnImportListener> listeners = new HashSet<OnImportListener>();

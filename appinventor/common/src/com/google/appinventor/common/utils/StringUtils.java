@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -100,17 +97,6 @@ public final class StringUtils {
     return false;
   }
 
-   public static boolean equalsIgnoreCase(String[] array, String string) {
-     string = string.toLowerCase();
-    for (String s : array) {
-      if (string.contains(s.toLowerCase())) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-
   /**
    * Returns a string consisting of the joined string array elements,
    * separated by the delimiter.
@@ -146,15 +132,34 @@ public final class StringUtils {
   }
 
   /**
+   * Joins a list of strings into a single string using a delimiter, with the
+   * output being directed into a StringBuilder object.
+   *
+   * @param sb The StringBuilder to receive the resulting string
+   * @param delimiter The delimiter to use between strings
+   * @param items The items to join
+   */
+  public static void join(StringBuilder sb, String delimiter, String... items) {
+    Preconditions.checkNotNull(sb);
+    Preconditions.checkNotNull(delimiter);
+    Preconditions.checkNotNull(items);
+
+    String separator = "";
+    for (String string : items) {
+      sb.append(separator);
+      sb.append(string);
+      separator = delimiter;
+    }
+  }
+
+  /**
    * Returns a semi-unique legal package name for a user.
    *
    * @param email the user's email address
    * @return  package name
    */
   public static String userToPackageName(String email) {
-//    StringBuilder sb = new StringBuilder("appinventor.ai_");   //appinventor.ai_kkashi01.AppName.FormName
-    StringBuilder sb = new StringBuilder("com.appybuilder."); //com.appybuilder.kkashi01.AppName.FormName
-
+    StringBuilder sb = new StringBuilder("appinventor.ai_");
     int length = email.length();
     for (int i = 0; i < length; i++) {
       char ch = email.charAt(i);
@@ -323,5 +328,22 @@ public final class StringUtils {
       initpos = str.indexOf(sub, initpos) + 1;
     }
     return count;
+  }
+
+  /* <p>Checks if text is null or empty ("")</p>
+   *
+   * <pre>
+   * StringUtils.isNullOrEmpty(null)      = true
+   * StringUtils.isNullOrEmpty("")        = true
+   * StringUtils.isNullOrEmpty(" ")       = false
+   * StringUtils.isNullOrEmpty("bob")     = false
+   * StringUtils.isNullOrEmpty("  bob  ") = false
+   * </pre>
+   *
+   * @param text  the String to check, may be null
+   * @return {@code true} if the text is empty or null
+   */
+  public static boolean isNullOrEmpty(final String text) {
+     return text == null || text.isEmpty();
   }
 }

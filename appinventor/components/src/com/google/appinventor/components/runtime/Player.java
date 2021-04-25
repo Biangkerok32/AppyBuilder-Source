@@ -1,14 +1,19 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2014 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime;
 
+import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
+
+import android.app.Activity;
+import android.content.Context;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.media.MediaPlayer.OnCompletionListener;
+import android.os.Vibrator;
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
 import com.google.appinventor.components.annotations.PropertyCategory;
@@ -20,19 +25,11 @@ import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
-import com.google.appinventor.components.runtime.errors.IllegalArgumentError;
+import com.google.appinventor.components.runtime.errors.PermissionException;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.FroyoUtil;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.SdkLevel;
-
-import android.app.Activity;
-import android.content.Context;
-import android.media.AudioManager;
-import android.media.MediaPlayer;
-import android.media.MediaPlayer.OnCompletionListener;
-import android.os.Vibrator;
-
 import java.io.IOException;
 
 // TODO: This implementation does nothing about releasing the Media
@@ -49,6 +46,18 @@ import java.io.IOException;
 // if the state restrictions are adequate given the API, and prove that
 // there can't be deadlock or starvation.
 /**
+ * Multimedia component that plays audio and controls phone vibration. The name of a multimedia
+ * file is specified in the {@link #Source(String)} property, which can be set in the Designer or
+ * in the Blocks Editor. The length of time for a vibration is specified in the Blocks Editor in
+ * milliseconds (thousandths of a second).
+ *
+ * For supported audio formats, see
+ * [Android Supported Media Formats](//developer.android.com/guide/appendix/media-formats.html).
+ *
+ * This component is best for long sound files, such as songs, while the {@link Sound} component is
+ * more efficient for short files, such as sound effects.
+ *
+ * @internaldoc
  * Multimedia component that plays audio and optionally
  * vibrates.  It is built on top of {@link android.media.MediaPlayer}.
  *
@@ -84,7 +93,7 @@ public final class Player extends AndroidNonvisibleComponent
 
   // determines if playing should loop
   private boolean loop;
-    private boolean runInBackground=false;
+
   // choices on player policy: Foreground, Always
   private boolean playOnlyInForeground;
   // status of audio focus
@@ -94,7 +103,6 @@ public final class Player extends AndroidNonvisibleComponent
   // Flag if SDK level >= 8
   private static final boolean audioFocusSupported;
   private Object afChangeListener;
-  private int volume = 50;
 
   static{
     if (SdkLevel.getLevel() >= SdkLevel.LEVEL_FROYO) {
@@ -157,7 +165,8 @@ public final class Player extends AndroidNonvisibleComponent
   /**
    * Sets the audio source.
    *
-   * <p/>See {@link MediaUtil#determineMediaSource} for information about what
+   * @internaldoc
+   * See {@link MediaUtil#determineMediaSource} for information about what
    * a path can be.
    *
    * @param path  the path to the audio source
@@ -165,8 +174,25 @@ public final class Player extends AndroidNonvisibleComponent
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET,
       defaultValue = "")
   @SimpleProperty
+  @UsesPermissions(READ_EXTERNAL_STORAGE)
   public void Source(String path) {
-    sourcePath = (path == null) ? "" : path;
+    final String tempPath = (path == null) ? "" : path;
+    if (MediaUtil.isExternalFile(form, tempPath)
+        && form.isDeniedPermission(READ_EXTERNAL_STORAGE)) {
+      form.askPermission(READ_EXTERNAL_STORAGE, new PermissionResultHandler() {
+        @Override
+        public void HandlePermissionResponse(String permission, boolean granted) {
+          if (granted) {
+            Player.this.Source(tempPath);
+          } else {
+            form.dispatchPermissionDeniedEvent(Player.this, "Source", permission);
+          }
+        }
+      });
+      return;
+    }
+
+    sourcePath = tempPath;
 
     // Clear the previous MediaPlayer.
     if (playerState == State.PREPARED || playerState == State.PLAYING || playerState == State.PAUSED_BY_USER) {
@@ -185,6 +211,11 @@ public final class Player extends AndroidNonvisibleComponent
       try {
         MediaUtil.loadMediaPlayer(player, form, sourcePath);
 
+      } catch (PermissionException e) {
+        player.release();
+        player = null;
+        form.dispatchPermissionDeniedEvent(this, "Source", e);
+        return;
       } catch (IOException e) {
         player.release();
         player = null;
@@ -228,43 +259,6 @@ public final class Player extends AndroidNonvisibleComponent
   }
 
   /**
-   * Reports the current position in milliseconds when playing or in pause mode, otherwise returns -1
-   */
-  @SimpleProperty(description = "Reports the current position in seconds," +
-          " when playing or in pause mode, otherwise returns -1", category = PropertyCategory.BEHAVIOR)
-  public int CurrrentPosition() {
-    if (player == null) return -1;
-
-    if (playerState == State.PREPARED || playerState == State.PLAYING) {
-      return player.getCurrentPosition() / 1000;   // milli to seconds
-    }
-    return -1;
-  }
-
-  /**
-   * Reports the duration in milliseconds, if no duration is available -1 is returned.
-   */
-  @SimpleProperty(description = "Reports the duration in seconds, if no duration is available " +
-          "-1 is returned.", category = PropertyCategory.BEHAVIOR)
-  public int Duration() {
-    if (player == null) return -1;
-
-    if (playerState == State.PREPARED || playerState == State.PLAYING) {
-      return player.getDuration() / 1000;  // convert to seconds
-    }
-    return -1;
-  }
-
-  @SimpleFunction(description = "Seeks to specified time position. The offset in seconds from the start to seek to")
-  public void SeekTo(int position) {
-    if (player == null) return;
-    if (position < 0) position = 0;
-    if (position > Duration()) position = Duration();
-
-    player.seekTo(position * 1000); // convert sec to millisec
-  }
-
-  /**
    * Reports whether the playing should loop.
    */
   @SimpleProperty(
@@ -276,7 +270,8 @@ public final class Player extends AndroidNonvisibleComponent
   }
 
   /**
-   * Sets the looping property to true or false.
+   * If true, the `Player` will loop when it plays. Setting `Loop` while the player is playing will
+   * affect the current playing.
    *
    * @param shouldLoop determines if the playing should loop
    */
@@ -294,10 +289,6 @@ public final class Player extends AndroidNonvisibleComponent
     loop = shouldLoop;
   }
 
-  @SimpleProperty(description = "Return the volume", category = PropertyCategory.BEHAVIOR)
-  public int Volume() {
-    return this.volume;
-  }
   /**
    * Sets the volume property to a number between 0 and 100.
    *
@@ -311,10 +302,9 @@ public final class Player extends AndroidNonvisibleComponent
   public void Volume(int vol) {
     if (playerState == State.PREPARED || playerState == State.PLAYING || playerState == State.PAUSED_BY_USER) {
       if (vol > 100 || vol < 0) {
-        this.volume = vol;
-          form.dispatchErrorOccurredEvent(this, "Volume", ErrorMessages.ERROR_PLAYER_INVALID_VOLUME, vol);
-        } else {
-          player.setVolume(((float) vol) / 100, ((float) vol) / 100);
+        form.dispatchErrorOccurredEvent(this, "Volume", ErrorMessages.ERROR_PLAYER_INVALID_VOLUME, vol); 
+      } else {
+        player.setVolume(((float) vol) / 100, ((float) vol) / 100);
       }
     }
   }
@@ -334,7 +324,9 @@ public final class Player extends AndroidNonvisibleComponent
   }
 
   /**
-   * Sets the property PlayOnlyInForeground to true or false.
+   * If true, the `Player` will pause playing when leaving the current screen; if false
+   * (default option), the `Player` continues playing whenever the current screen is displaying or
+   * not.
    *
    * @param shouldForeground determines whether plays only in foreground or always.
    */
@@ -469,7 +461,8 @@ public final class Player extends AndroidNonvisibleComponent
   }
 
   /**
-   * Indicates that the other player has requested the focus of media
+   * This event is signaled when another player has started (and the current player is playing or
+   * paused, but not stopped).
    */
   @SimpleEvent(description = "This event is signaled when another player has started" +
       " (and the current player is playing or paused, but not stopped).")
@@ -530,26 +523,4 @@ public final class Player extends AndroidNonvisibleComponent
     }
     vibe.cancel();
   }
-
-    /**
-     * Returns true if the RunInBackground is enabled
-     *
-     * @return  {@code true} indicates enabled, {@code false} disabled
-     */
-    @SimpleProperty(category = PropertyCategory.BEHAVIOR)
-    public boolean RunInBackground() {
-        return runInBackground;
-    }
-
-    /**
-     * Specifies whether the Player should play in background. Please note if enabled, the Player
-     * continuously plays even if there is incoming call
-     *
-     * @param enabled  {@code true} for enabled, {@code false} disabled
-     */
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
-    @SimpleProperty
-    public void RunInBackground(boolean enabled) {
-        runInBackground = enabled;
-    }
 }

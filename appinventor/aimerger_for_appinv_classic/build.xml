@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <project default="AIMergerApp" name="AIMergerApp">
-	<description> AppyBuilder build AIMerger Tool </description>
+	<description> App Inventor build AIMerger Tool </description>
 
 	<!-- ===================================================================== 
 		Import common directory, task, and target definitions. 

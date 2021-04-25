@@ -12,8 +12,15 @@
 goog.provide('Blockly.Yail.math');
 
 Blockly.Yail['math_number'] = function() {
-  // Numeric value.
-  var code = window.parseFloat(this.getFieldValue('NUM'));
+  // Use Number() instead of parseFloat because it automatically
+  // converts hex, binary, and octal to decimal.
+  var code = Number(this.getFieldValue('NUM'));
+  return [code, Blockly.Yail.ORDER_ATOMIC];
+};
+
+Blockly.Yail['math_number_radix'] = function() {
+  var prefix = Blockly.Blocks.math_number_radix.PREFIX[this.getFieldValue('OP')];
+  var code = Number(prefix + this.getFieldValue('NUM'));
   return [code, Blockly.Yail.ORDER_ATOMIC];
 };
 
@@ -91,18 +98,6 @@ Blockly.Yail['math_multiply'] = function() {
   return Blockly.Yail.math_arithmetic_list("MULTIPLY",this);
 };
 
-Blockly.Yail['math_bitwise_and'] = function() {
-  return Blockly.Yail.math_arithmetic("BITAND", this);
-};
-
-Blockly.Yail['math_bitwise_ior'] = function() {
-  return Blockly.Yail.math_arithmetic("BITIOR", this);
-};
-
-Blockly.Yail['math_bitwise_xor'] = function() {
-  return Blockly.Yail.math_arithmetic("BITXOR", this);
-};
-
 Blockly.Yail['math_arithmetic_list'] = function(mode,block) {
   // Basic arithmetic operators.
   //var mode = this.getFieldValue('OP');
@@ -135,10 +130,39 @@ Blockly.Yail.math_arithmetic.OPERATORS = {
   MINUS: ['-', Blockly.Yail.ORDER_NONE],
   MULTIPLY: ['*', Blockly.Yail.ORDER_NONE],
   DIVIDE: ['yail-divide', Blockly.Yail.ORDER_NONE],
-  POWER: ['expt', Blockly.Yail.ORDER_NONE],
-  BITAND: ['bitwise-and', Blockly.Yail.ORDER_NONE],
-  BITIOR: ['bitwise-ior', Blockly.Yail.ORDER_NONE],
-  BITXOR: ['bitwise-xor', Blockly.Yail.ORDER_NONE]
+  POWER: ['expt', Blockly.Yail.ORDER_NONE]
+};
+
+Blockly.Yail['math_bitwise'] = function() {
+  // Bitwise and, inclusive or, and exclusive or. All can take variable number of arguments.
+  var mode = this.getFieldValue('OP');
+  var tuple = Blockly.Yail.math_bitwise.OPERATORS[mode];
+  var operator = tuple[0];
+  var order = tuple[1];
+  var args = "";
+  var typeString = "";
+  for(var i=0;i<this.itemCount_;i++) {
+    args += (Blockly.Yail.valueToCode(this, 'NUM' + i, order) || 0) + Blockly.Yail.YAIL_SPACER;
+    typeString += "number" + Blockly.Yail.YAIL_SPACER;
+  }
+  var code = Blockly.Yail.YAIL_CALL_YAIL_PRIMITIVE + operator
+      + Blockly.Yail.YAIL_SPACER;
+  code = code + Blockly.Yail.YAIL_OPEN_COMBINATION
+      + Blockly.Yail.YAIL_LIST_CONSTRUCTOR + Blockly.Yail.YAIL_SPACER
+      + args
+      + Blockly.Yail.YAIL_CLOSE_COMBINATION;
+  code = code + Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_QUOTE
+      + Blockly.Yail.YAIL_OPEN_COMBINATION + typeString
+      + Blockly.Yail.YAIL_CLOSE_COMBINATION + Blockly.Yail.YAIL_SPACER;
+  code = code + Blockly.Yail.YAIL_DOUBLE_QUOTE + operator
+      + Blockly.Yail.YAIL_DOUBLE_QUOTE + Blockly.Yail.YAIL_CLOSE_COMBINATION;
+  return [ code, Blockly.Yail.ORDER_ATOMIC ];
+};
+
+Blockly.Yail.math_bitwise.OPERATORS = {
+    BITAND: ['bitwise-and', Blockly.Yail.ORDER_NONE],
+    BITIOR: ['bitwise-ior', Blockly.Yail.ORDER_NONE],
+    BITXOR: ['bitwise-xor', Blockly.Yail.ORDER_NONE]
 };
 
 Blockly.Yail['math_single'] = function() {
@@ -249,10 +273,15 @@ Blockly.Yail['math_on_list'] = function() {
   var tuple = Blockly.Yail.math_on_list.OPERATORS[mode];
   var operator = tuple[0];
   var order = tuple[1];
+  var identity = tuple[2];
   var args = "";
   var typeString = "";
   for(var i=0;i<this.itemCount_;i++) {
     args += (Blockly.Yail.valueToCode(this, 'NUM' + i, order) || 0) + Blockly.Yail.YAIL_SPACER;
+    typeString += "number" + Blockly.Yail.YAIL_SPACER;
+  }
+  if (this.itemCount_ === 0) {
+    args += identity + Blockly.Yail.YAIL_SPACER;
     typeString += "number" + Blockly.Yail.YAIL_SPACER;
   }
   var code = Blockly.Yail.YAIL_CALL_YAIL_PRIMITIVE + operator
@@ -270,8 +299,8 @@ Blockly.Yail['math_on_list'] = function() {
 };
 
 Blockly.Yail.math_on_list.OPERATORS = {
-  MIN: ['min', Blockly.Yail.ORDER_NONE],
-  MAX: ['max', Blockly.Yail.ORDER_NONE]
+  MIN: ['min', Blockly.Yail.ORDER_NONE, '+inf.0'],
+  MAX: ['max', Blockly.Yail.ORDER_NONE, '-inf.0']
 };
 
 Blockly.Yail['math_divide'] = function() {

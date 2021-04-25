@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2015-2017 MIT, All rights reserved
+// Copyright 2015-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -44,10 +44,12 @@ import org.json.JSONObject;
 public class ComponentServiceImpl extends OdeRemoteServiceServlet
     implements ComponentService {
 
+  private static final String CANNOT_UPGRADE_MESSAGE = "An extension containing %s already exists" +
+      " on the server but could not be upgraded. The new extension was not loaded.";
   private static final Logger LOG =
       Logger.getLogger(ComponentServiceImpl.class.getName());
 
-  private final transient StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+  private final transient StorageIo storageIo = StorageIoInstanceHolder.getInstance();
 
   private final FileImporter fileImporter = new FileImporterImpl();
 
@@ -186,12 +188,18 @@ public class ComponentServiceImpl extends OdeRemoteServiceServlet
       // upgrade of one or more existing extensions
       try {
         Map<String, JSONObject> componentMap = makeComponentMap(newComponents);
+        boolean willCollide = sourceFiles.contains(basepath + nameMap.get("classes.jar"));
         Iterator<String> i = oldTypes.iterator();
         while (i.hasNext()) {
           String extension = i.next();
           if (upgradeOldExtension(userId, projectId, basepath, extension,
               existingExtensions.get(extension), componentMap)) {
             status = Status.UPGRADED;
+          } else if (willCollide) {
+            // collision but we are not upgrading an existing extension? abort!
+            response.setStatus(Status.FAILED);
+            response.setMessage(String.format(CANNOT_UPGRADE_MESSAGE, extension));
+            return;
           } else {
             // no overlap between the old and new extensions, so don't delete!
             i.remove();

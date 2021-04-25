@@ -16,28 +16,8 @@ goog.provide('goog.debugTest');
 goog.setTestOnly('goog.debugTest');
 
 goog.require('goog.debug');
-goog.require('goog.html.SafeHtml');
-goog.require('goog.structs.Set');
+goog.require('goog.debug.errorcontext');
 goog.require('goog.testing.jsunit');
-
-function testExposeException() {
-  var expected = 'Message: message&quot;<br>' +
-      'Url: <a href="view-source:http://fileName&quot;" ' +
-      'target="_new">http://fileName&quot;</a><br>' +
-      'Line: lineNumber&quot;<br><br>' +
-      'Browser stack:<br>' +
-      'stack&quot;-&gt; [end]';
-  var error = {
-    message: 'message"',
-    fileName: 'http://fileName"',
-    lineNumber: 'lineNumber"',
-    stack: 'stack"'
-  };
-  var actualHtml = goog.debug.exposeExceptionAsHtml(error);
-  var actual = goog.html.SafeHtml.unwrap(actualHtml);
-  actual = actual.substring(0, expected.length);
-  assertEquals(expected, actual);
-}
 
 function testMakeWhitespaceVisible() {
   assertEquals(
@@ -48,38 +28,15 @@ function testMakeWhitespaceVisible() {
           'Hello  World!\r\n\r\n\f\fI am\t\there!\r\n'));
 }
 
-function testGetFunctionName() {
-  // Trivial resolver that matches just a few names: a static function, a
-  // constructor, and a member function.
-  var resolver = function(f) {
-    if (f === goog.debug.getFunctionName) {
-      return 'goog.debug.getFunctionName';
-    } else if (f === goog.structs.Set) {
-      return 'goog.structs.Set';
-    } else if (f === goog.structs.Set.prototype.getCount) {
-      return 'goog.structs.Set.getCount';
-    } else {
-      return null;
-    }
-  };
-  goog.debug.setFunctionResolver(resolver);
-
-  assertEquals(
-      'goog.debug.getFunctionName',
-      goog.debug.getFunctionName(goog.debug.getFunctionName));
-  assertEquals(
-      'goog.structs.Set', goog.debug.getFunctionName(goog.structs.Set));
-  var set = new goog.structs.Set();
-  assertEquals(
-      'goog.structs.Set.getCount', goog.debug.getFunctionName(set.getCount));
-
-  // This function is matched by the fallback heuristic.
-  assertEquals(
-      'testGetFunctionName', goog.debug.getFunctionName(testGetFunctionName));
-
-  goog.debug.setFunctionResolver(null);
+function testGetFunctionNameOfMultilineFunction() {
+  // DO NOT FORMAT THIS - it is expected that "oddlyFormatted" be on a separate
+  // line from the function keyword.
+  // clang-format off
+  function
+      oddlyFormatted() {}
+  // clang-format on
+  assertEquals('oddlyFormatted', goog.debug.getFunctionName(oddlyFormatted));
 }
-
 
 /**
  * Asserts that a substring can be found in a specified text string.
@@ -97,14 +54,149 @@ function assertContainsSubstring(substring, text) {
 function testDeepExpose() {
   var a = {};
   var b = {};
+  var c = {};
   a.ancestor = a;
   a.otherObject = b;
   a.otherObjectAgain = b;
+  b.nextLevel = c;
+  // Add Uid to a before deepExpose.
+  var aUid = goog.getUid(a);
 
   var deepExpose = goog.debug.deepExpose(a);
 
   assertContainsSubstring(
-      'ancestor = ... reference loop detected ...', deepExpose);
+      'ancestor = ... reference loop detected .id=' + aUid + '. ...',
+      deepExpose);
 
   assertContainsSubstring('otherObjectAgain = {', deepExpose);
+
+  // Make sure we've reset Uids after the deepExpose call.
+  assert(goog.hasUid(a));
+  assertFalse(goog.hasUid(b));
+  assertFalse(goog.hasUid(c));
+}
+
+
+function testEnhanceErrorWithContext() {
+  var err = 'abc';
+  var context = {firstKey: 'first', secondKey: 'another key'};
+  var errorWithContext = goog.debug.enhanceErrorWithContext(err, context);
+  assertObjectEquals(
+      context, goog.debug.errorcontext.getErrorContext(errorWithContext));
+}
+
+
+function testEnhanceErrorWithContext_combinedContext() {
+  var err = new Error('abc');
+  goog.debug.errorcontext.addErrorContext(err, 'a', '123');
+  var context = {b: '456', c: '789'};
+  var errorWithContext = goog.debug.enhanceErrorWithContext(err, context);
+  assertObjectEquals(
+      {a: '123', b: '456', c: '789'},
+      goog.debug.errorcontext.getErrorContext(errorWithContext));
+}
+
+
+function testFreeze_nonDebug() {
+  if (goog.DEBUG && typeof Object.freeze == 'function') return;
+  var a = {};
+  assertEquals(a, goog.debug.freeze(a));
+  a.foo = 42;
+  assertEquals(42, a.foo);
+}
+
+
+function testFreeze_debug() {
+  if (goog.DEBUG || typeof Object.freeze != 'function') return;
+  var a = {};
+  assertEquals(a, goog.debug.freeze(a));
+  try {
+    a.foo = 42;
+  } catch (expectedInStrictMode) {
+  }
+  assertUndefined(a.foo);
+}
+
+
+function testNormalizeErrorObject_actualErrorObject() {
+  var err = goog.debug.normalizeErrorObject(new Error('abc'));
+
+  assertEquals('Error', err.name);
+  assertEquals('abc', err.message);
+}
+
+
+function testNormalizeErrorObject_actualErrorObject_withNoMessage() {
+  var err = goog.debug.normalizeErrorObject(new Error());
+
+  assertEquals('Error', err.name);
+  assertEquals('', err.message);
+}
+
+
+function testNormalizeErrorObject_null() {
+  var err = goog.debug.normalizeErrorObject(null);
+
+  assertEquals('Unknown error', err.name);
+  assertEquals('Unknown Error of type "null/undefined"', err.message);
+}
+
+
+function testNormalizeErrorObject_undefined() {
+  var err = goog.debug.normalizeErrorObject(undefined);
+
+  assertEquals('Unknown error', err.name);
+  assertEquals('Unknown Error of type "null/undefined"', err.message);
+}
+
+
+function testNormalizeErrorObject_string() {
+  var err = goog.debug.normalizeErrorObject('abc');
+
+  assertEquals('Unknown error', err.name);
+  assertEquals('abc', err.message);
+}
+
+
+function testNormalizeErrorObject_number() {
+  var err = goog.debug.normalizeErrorObject(10);
+
+  assertEquals('UnknownError', err.name);
+  assertEquals('Unknown Error of type "Number"', err.message);
+}
+
+
+function testNormalizeErrorObject_nonErrorObject() {
+  var err = goog.debug.normalizeErrorObject({foo: 'abc'});
+
+  assertEquals('UnknownError', err.name);
+  assertEquals('Unknown Error of type "Object"', err.message);
+}
+
+
+function testNormalizeErrorObject_objectCreateNull() {
+  var err = goog.debug.normalizeErrorObject(Object.create(null));
+
+  assertEquals('UnknownError', err.name);
+  assertEquals('Unknown Error of unknown type', err.message);
+}
+
+
+function testNormalizeErrorObject_instanceOfClass() {
+  var TestClass = function(text) {
+    this.text = text;
+  };
+  var instance = new TestClass('abc');
+  var err = goog.debug.normalizeErrorObject(instance);
+
+  assertEquals('UnknownError', err.name);
+  // https://www.ecma-international.org/ecma-262/6.0/#sec-assignment-operators-runtime-semantics-evaluation
+  // says `instance.contstructor.name` should be "TestClass", but IE & Edge
+  // don't match that spec, so get "[Anonymous]" from
+  // `goog.debug.getFunctionName`.
+  if (TestClass.name) {
+    assertEquals('Unknown Error of type "TestClass"', err.message);
+  } else {
+    assertEquals('Unknown Error of type "[Anonymous]"', err.message);
+  }
 }

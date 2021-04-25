@@ -1,9 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -179,7 +176,7 @@ public final class DragSourceSupport implements MouseListener, TouchStartHandler
             sel.removeAllRanges();
           }
           if (sel.collapse) {
-            sel.collapse();
+            sel.collapse(null, 0);
           }
         }
       }
@@ -413,13 +410,13 @@ public final class DragSourceSupport implements MouseListener, TouchStartHandler
   }
 
   @Override
-  public void onTouchEnd(TouchEndEvent event) {
+  public void onTouchEnd(final TouchEndEvent event) {
     final Widget src = (Widget) event.getSource();
     if (src instanceof MockComponent) {  // We only select on CLICK, which isn't generated on mobile
       DeferredCommand.addCommand(new Command() {
         @Override
         public void execute() {
-          ((MockComponent) src).select();
+          ((MockComponent) src).select(event.getNativeEvent());
         }
       });
     }

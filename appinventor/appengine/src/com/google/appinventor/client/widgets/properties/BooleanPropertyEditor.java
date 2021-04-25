@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -46,13 +43,19 @@ public class BooleanPropertyEditor extends PropertyEditor implements ValueChange
   // Updates the property value shown in the editor
   @Override
   protected void updateValue() {
-    checkbox.setValue(property.getValue().equals(trueValue));
+    if (isMultipleValues()) {
+      checkbox.setValue(false);
+      checkbox.getElement().getFirstChildElement().setPropertyBoolean("indeterminate", true);
+    } else {
+      checkbox.setValue(property.getValue().equals(trueValue));
+    }
   }
 
   // ValueChangeHandler implementation
 
   @Override
   public void onValueChange(ValueChangeEvent<Boolean> event) {
+    setMultipleValues(false);
     property.setValue(checkbox.getValue() ? trueValue : falseValue);
   }
 }

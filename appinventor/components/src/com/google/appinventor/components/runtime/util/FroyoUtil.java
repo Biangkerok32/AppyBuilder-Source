@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -12,10 +9,7 @@ package com.google.appinventor.components.runtime.util;
 import android.app.Activity;
 import android.content.Context;
 import android.media.AudioManager;
-import android.net.http.SslError;
 import android.view.Display;
-import android.webkit.SslErrorHandler;
-import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import com.google.appinventor.components.runtime.Component;
@@ -127,24 +121,8 @@ public class FroyoUtil {
    * @param ignoreErrors set to true to ignore errors
    */
   public static WebViewClient getWebViewClient(final boolean ignoreErrors,
-    final boolean followLinks, final Form form, final Component component) {
-    return new WebViewClient() {
-      @Override
-      public boolean shouldOverrideUrlLoading(WebView view, String url) {
-        return !followLinks;
-      }
-
-      @Override
-      public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-        if (ignoreErrors) {
-          handler.proceed();
-        } else {
-          handler.cancel();
-          form.dispatchErrorOccurredEvent(component, "WebView",
-            ErrorMessages.ERROR_WEBVIEW_SSL_ERROR);
-        }
-      }
-    };
+      final boolean followLinks, final Form form, final Component component) {
+    return new FroyoWebViewClient(followLinks, ignoreErrors, form, component);
   }
 
 }

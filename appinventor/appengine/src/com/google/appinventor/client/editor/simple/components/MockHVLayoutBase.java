@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -41,7 +38,7 @@ abstract class MockHVLayoutBase extends MockLayout {
   private static final int EMPTY_WIDTH = ComponentConstants.EMPTY_HV_ARRANGEMENT_WIDTH;
   private static final int EMPTY_HEIGHT = ComponentConstants.EMPTY_HV_ARRANGEMENT_HEIGHT;
 
-  protected int orientation;
+  protected final int orientation;
 
 
 
@@ -82,7 +79,7 @@ abstract class MockHVLayoutBase extends MockLayout {
    */
   MockHVLayoutBase(int orientation) {
     if (orientation != ComponentConstants.LAYOUT_ORIENTATION_VERTICAL &&
-            orientation != ComponentConstants.LAYOUT_ORIENTATION_HORIZONTAL) {
+        orientation != ComponentConstants.LAYOUT_ORIENTATION_HORIZONTAL) {
       throw new IllegalArgumentException("Illegal orientation: " + orientation);
     }
     this.orientation = orientation;
@@ -96,14 +93,6 @@ abstract class MockHVLayoutBase extends MockLayout {
     alignV = VerticalAlignment.Top;
   }
 
-  protected void initHVLayout(int orientation) {
-    if (orientation != ComponentConstants.LAYOUT_ORIENTATION_VERTICAL &&
-            orientation != ComponentConstants.LAYOUT_ORIENTATION_HORIZONTAL) {
-      throw new IllegalArgumentException("Illegal orientation: " + orientation);
-    }
-    this.orientation = orientation;
-
-  }
   // Divider
 
   private void ensureDividerInited() {

@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -17,7 +14,6 @@ import com.google.appinventor.client.explorer.project.ProjectChangeListener;
 import com.google.appinventor.client.explorer.project.ProjectNodeContextMenu;
 import com.google.appinventor.client.output.OdeLog;
 import com.google.appinventor.client.widgets.TextButton;
-import com.google.appinventor.client.wizards.DNDFileUploadWizard;
 import com.google.appinventor.client.wizards.FileUploadWizard;
 import com.google.appinventor.shared.rpc.project.ProjectNode;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidAssetNode;
@@ -26,8 +22,11 @@ import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidProjec
 import com.google.appinventor.shared.storage.StorageUtil;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.event.dom.client.MouseMoveEvent;
+import com.google.gwt.event.dom.client.MouseMoveHandler;
 import com.google.gwt.event.logical.shared.SelectionEvent;
 import com.google.gwt.event.logical.shared.SelectionHandler;
+import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.Image;
@@ -51,6 +50,8 @@ public class AssetList extends Composite implements ProjectChangeListener {
   private long projectId;
   private Project project;
   private YoungAndroidAssetsFolder assetsFolder;
+  private int clientX;
+  private int clientY;
 
   /**
    * Creates a new AssetList
@@ -70,8 +71,7 @@ public class AssetList extends Composite implements ProjectChangeListener {
       @Override
       public void onClick(ClickEvent event) {
         if (assetsFolder != null) {
-//          FileUploadWizard uploader = new FileUploadWizard(assetsFolder);
-          DNDFileUploadWizard uploader = new DNDFileUploadWizard(assetsFolder);
+          FileUploadWizard uploader = new FileUploadWizard(assetsFolder);
           uploader.show();
         }
       }
@@ -86,6 +86,15 @@ public class AssetList extends Composite implements ProjectChangeListener {
 
     initWidget(panel);
 
+    assetList.setScrollOnSelectEnabled(false);
+    assetList.sinkEvents(Event.ONMOUSEMOVE);
+    assetList.addMouseMoveHandler(new MouseMoveHandler() {
+      @Override
+      public void onMouseMove(MouseMoveEvent event) {
+        clientX = event.getClientX();
+        clientY = event.getClientY();
+      }
+    });
     assetList.addSelectionHandler(new SelectionHandler<TreeItem>() {
       @Override
       public void onSelection(SelectionEvent<TreeItem> event) {
@@ -93,7 +102,7 @@ public class AssetList extends Composite implements ProjectChangeListener {
         ProjectNode node = (ProjectNode) selected.getUserObject();
         // The actual menu is determined by what is registered for the filenode
         // type in CommandRegistry.java
-        ProjectNodeContextMenu.show(node, selected.getWidget());
+        ProjectNodeContextMenu.show(node, selected.getWidget(), clientX, clientY);
       }});
   }
 
@@ -113,21 +122,17 @@ public class AssetList extends Composite implements ProjectChangeListener {
         if (nodeName.length() > 20)
           nodeName = nodeName.substring(0, 8) + "..." + nodeName.substring(nodeName.length() - 9,
               nodeName.length());
-//        TreeItem treeItem = new TreeItem(
-//            new HTML("<span>" + nodeName + "</span>"));
 
         String fileSuffix = node.getProjectId() + "/" + node.getFileId();
-        String treeItemText = "<span style='cursor: pointer'>" + nodeName + "</span>";
+        String treeItemText = "<span style='cursor: pointer'>";
         if (StorageUtil.isImageFile(fileSuffix)) {
-          Image mediaIcon = new Image(images.mediaIconImg());
-          treeItemText = "<span>" + mediaIcon + nodeName + "</span>";
+          treeItemText += new Image(images.mediaIconImg());
         } else if (StorageUtil.isAudioFile(fileSuffix )) {
-          Image mediaIcon = new Image(images.mediaIconAudio());
-          treeItemText = "<span>" + mediaIcon + nodeName + "</span>";
-        } else {
-          Image mediaIcon = new Image(images.mediaIconVideo());
-          treeItemText = "<span>" + mediaIcon + nodeName + "</span>";
+          treeItemText += new Image(images.mediaIconAudio());
+        } else if (StorageUtil.isVideoFile(fileSuffix )) {
+          treeItemText += new Image(images.mediaIconVideo());
         }
+        treeItemText += nodeName + "</span>";
         TreeItem treeItem = new TreeItem(new HTML(treeItemText));
         // keep a pointer from the tree item back to the actual node
         treeItem.setUserObject(node);

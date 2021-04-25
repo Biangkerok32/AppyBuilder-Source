@@ -1,7 +1,4 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2016-2020 AppyBuilder.com, All Rights Reserved - Info@AppyBuilder.com
-// https://www.gnu.org/licenses/gpl-3.0.en.html
-
 // Copyright 2009-2011 Google, All Rights reserved
 // Copyright 2011-2012 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
@@ -34,6 +31,12 @@ public final class GeneralSettings extends Settings {
         EditableProperty.TYPE_INVISIBLE));
     addProperty(new EditableProperty(this, SettingsConstants.DISABLED_USER_URL, "",
         EditableProperty.TYPE_INVISIBLE));
+    addProperty(new EditableProperty(this, SettingsConstants.USER_LAST_LOCALE, "en",
+        EditableProperty.TYPE_INVISIBLE));
+    addProperty(new EditableProperty(this, SettingsConstants.USER_DYSLEXIC_FONT, "false",
+        EditableProperty.TYPE_INVISIBLE));
+    addProperty(new EditableProperty(this, SettingsConstants.USER_AUTOLOAD_PROJECT, "true",
+        EditableProperty.TYPE_INVISIBLE));
   }
 
   @Override
@@ -43,8 +46,6 @@ public final class GeneralSettings extends Settings {
       // Account is disabled, show dialog box and stop further processing
       // i.e., do not open previous project.
       Ode.getInstance().disabledAccountDialog(disabledUrl);
-    } else {
-      Ode.getInstance().openPreviousProject();
     }
   }
 }

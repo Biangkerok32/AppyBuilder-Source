@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2015 MIT, All rights reserved
+// Copyright 2015-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -52,6 +52,8 @@ import org.json.JSONException;
  * the tag. It also possesses a listener to fire events when stored
  * values are changed.
  *
+ * [Additional Information](../other/firebase.html)
+ *
  * @author kasmus@mit.edu (Kristin Asmus)
  * @author will2596@gmail.com (William Byrne) (default Firebase partitioning and user authentication)
  * @author jis@mit.edu (Jeffrey I. Schiller) (defaultURL setup at runtime, other cleanup)
@@ -62,8 +64,9 @@ import org.json.JSONException;
     "retrieve information.",
     designerHelpDescription = "Non-visible component that communicates with a Firebase" +
         " to store and retrieve information.",
-    category = ComponentCategory.STORAGE,
+    category = ComponentCategory.EXPERIMENTAL,
     nonVisible = true,
+    androidMinSdk = 10,
     iconName = "images/firebaseDB.png")
 @SimpleObject
 @UsesPermissions(permissionNames = "android.permission.INTERNET")
@@ -72,13 +75,10 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
 
   private static final String LOG_TAG = "Firebase";
   private String firebaseURL = null;
-//  private String defaultURL = "https://Amerkashi.firebaseio.com/";
-//  private boolean useDefault = true;
+  private String defaultURL = null;
+  private boolean useDefault = true;
   private String developerBucket;
   private String projectBucket;
-//  private static final String MY_FIREBASE_URL = "https://Amerkashi.firebaseio.com/";
-  private static final String MY_FIREBASE_URL = "https://appybuilder-5762b.firebaseio.com/";
-
   private String firebaseToken;
   // Note: The two variables below are static because the systems they
   // interact with within Firebase are also static
@@ -135,13 +135,11 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
     // in a separate thread, but which themselves want to cause actions
     // back in the UI thread.  They do this by posting those actions
     // to androidUIHandler.
-
-//    firebaseURL = defaultURL;
     androidUIHandler = new Handler();
     this.activity = container.$context();
     Firebase.setAndroidContext(activity);
 
-    firebaseURL = MY_FIREBASE_URL;
+    developerBucket = ""; // set dynamically in the Designer
     projectBucket = ""; // given a dynamic default value in the Designer
     firebaseToken = ""; // set dynamically in the Designer
 
@@ -182,19 +180,22 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
 
       @Override
       public void onChildMoved(DataSnapshot snapshot, String previousChildKey) {
-                // check this to see how to find out number of connected users:
-                // https://www.firebase.com/blog/2013-06-17-howto-build-a-presence-system.html
       }
 
       @Override
       public void onChildRemoved(final DataSnapshot snapshot) {
-                androidUIHandler.post(new Runnable() {
-                    public void run() {
-                        // Signal an event to indicate that the child data was changed.
-                        // We post this to run in the Application's main UI thread.
-                        DataChanged(snapshot.getKey(), null);
-                    }
-                });
+        Log.i(LOG_TAG, "onChildRemoved: " + snapshot.getKey() + " removed.");
+        // We do *NOT* run the code below because triggering an event
+        // with a null argument causes problems in App Inventor programs
+        // If people need to know when a child is removed, we should add
+        // a new event which only takes the tag as a parameter
+        // androidUIHandler.post(new Runnable() {
+        //   public void run() {
+        //     // Signal an event to indicate that the child data was changed.
+        //     // We post this to run in the Application's main UI thread.
+        //     DataChanged(snapshot.getKey(), null);
+        //   }
+        // });
       }
     };
 
@@ -244,13 +245,13 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
    */
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
     description = "Gets the URL for this FirebaseDB.",
-    userVisible = true)
+    userVisible = false)
   public String FirebaseURL() {
-//    if (useDefault) {
-//      return "DEFAULT";
-//    } else {
+    if (useDefault) {
+      return "DEFAULT";
+    } else {
       return firebaseURL;
-//    }
+    }
   }
 
   /**
@@ -262,33 +263,50 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
    * @param url the URL for the Firebase
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_FIREBASE_URL,
-    defaultValue = MY_FIREBASE_URL)
+    defaultValue = "DEFAULT")
   @SimpleProperty(description = "Sets the URL for this FirebaseDB.")
   public void FirebaseURL(String url) {
-//    if (url.equals("DEFAULT")) {
-//      if (!useDefault) {        // If we weren't setup for the default
-//        useDefault = true;
-//        if (defaultURL == null) { // Not setup yet
-//          Log.d(LOG_TAG, "FirebaseURL called before DefaultURL (should not happen!)");
-//        } else {
-//          firebaseURL = defaultURL;
-//          resetListener();
-//        }
-//      } else {
-//        firebaseURL = defaultURL; // Should already be the case
-//      }
-//    } else {
-//      useDefault = false;
+    if (url.equals("DEFAULT")) {
+      if (!useDefault) {        // If we weren't setup for the default
+        useDefault = true;
+        if (defaultURL == null) { // Not setup yet
+          Log.d(LOG_TAG, "FirebaseURL called before DefaultURL (should not happen!)");
+        } else {
+          firebaseURL = defaultURL;
+          resetListener();
+        }
+      } else {
+        firebaseURL = defaultURL; // Should already be the case
+      }
+    } else {
+      useDefault = false;
       url = url + (url.endsWith("/") ? "" : "/");
 
       if (firebaseURL.equals(url)) {
         return;                 // Nothing to do
       } else {
         firebaseURL = url;
-//        useDefault = false;
+        useDefault = false;
         resetListener();
       }
-//    }
+    }
+  }
+
+  /**
+   * Specifies the unique developer path of the Firebase.
+   *
+   * @internaldoc
+   * This is set programmatically
+   * in {@link com.google.appinventor.client.editor.simple.components.MockFirebaseDB}
+   * and consists of the current App Inventor user's email.
+   *
+   * @param bucket the name of the developer's bucket
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
+  @SimpleProperty
+  public void DeveloperBucket(String bucket) {
+    developerBucket = bucket;
+    resetListener();
   }
 
   /**
@@ -299,31 +317,6 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false)
   public String DeveloperBucket() {
     return developerBucket;
-  }
-
-  /**
-   * Specifies the unique developer path of the Firebase. This is set programmatically
-   * in {@link com.google.appinventor.client.editor.simple.components.MockFirebaseDB}
-   * and consists of the current App Inventor user's email.
-   *
-   * @param bucket the name of the developer's bucket
-   */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
-  @SimpleProperty(userVisible = false)
-  public void DeveloperBucket(String bucket) {
-    developerBucket = bucket;
-    resetListener();
-  }
-
-  /**
-   * Getter for the ProjectBucket.
-   *
-   * @return the ProjectBucket for this Firebase
-   */
-  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-      description = "Gets the ProjectBucket for this FirebaseDB.")
-  public String ProjectBucket() {
-    return projectBucket;
   }
 
   /**
@@ -342,17 +335,18 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
   }
 
   /**
-   * Getter for the FirebaseToken.
+   * Getter for the ProjectBucket.
    *
-   * @return the JWT used to authenticate users on the default Firebase
+   * @return the ProjectBucket for this Firebase
    */
-  @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false)
-  public String FirebaseToken() {
-    return firebaseToken;
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+      description = "Gets the ProjectBucket for this FirebaseDB.")
+  public String ProjectBucket() {
+    return projectBucket;
   }
 
   /**
-   * Specifies the JWT for the default Firebase.
+   * Specifies the token for the default Firebase.
    *
    * @param JWT the JSON Web Token (JWT) used to authenticate on the
    *            default Firebase
@@ -362,6 +356,16 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
   public void FirebaseToken(String JWT) {
     firebaseToken = JWT;
     resetListener();
+  }
+
+  /**
+   * Getter for the FirebaseToken.
+   *
+   * @return the JWT used to authenticate users on the default Firebase
+   */
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false)
+  public String FirebaseToken() {
+    return firebaseToken;
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
@@ -453,7 +457,7 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
    * @param valueToStore The value to store. Can be any type of value (e.g.
    * number, text, boolean or list).
    */
-    @SimpleFunction(description = "Triggers storing the value using the supplied tag (key)")
+  @SimpleFunction
   public void StoreValue(final String tag, Object valueToStore) {
     try {
       if(valueToStore != null) {
@@ -467,12 +471,6 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
     this.myFirebase.child(tag).setValue(valueToStore);
   }
 
-    @SimpleFunction(description = "Triggers deleting the tag and its value. NOTE: If the tag is bucket, then ALL CHILD DATA WILL BE DELETED")
-    public void DeleteValue(final String tag) {
-        // perform the remove operation
-        this.myFirebase.child(tag).removeValue();
-    }
-
   /**
    * GetValue asks Firebase to get the value stored under the given tag.
    * It will pass valueIfTagNotThere to GotValue if there is no value stored
@@ -482,7 +480,7 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
    * @param valueIfTagNotThere The value to pass to the event if the tag does
    *                           not exist.
    */
-    @SimpleFunction (description = "Triggers getting value for the specified tag")
+  @SimpleFunction
   public void GetValue(final String tag, final Object valueIfTagNotThere) {
     this.myFirebase.child(tag).addListenerForSingleValueEvent(new ValueEventListener() {
       @Override
@@ -531,11 +529,11 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
    * @param value the value that was returned. Can be any type of value
    *              (e.g. number, text, boolean or list).
    */
-    @SimpleEvent(description = "Triggered after a GetValue is executed and a result is returned")
+  @SimpleEvent
   public void GotValue(String tag, Object value) {
     try {
       if(value != null && value instanceof String) {
-        value = JsonUtil.getObjectFromJson((String) value);
+        value = JsonUtil.getObjectFromJson((String) value, true);
       }
     } catch(JSONException e) {
       throw new YailRuntimeError("Value failed to convert from JSON.", "JSON Retrieval Error.");
@@ -552,11 +550,11 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
    * @param tag the tag that has changed.
    * @param value the value that has changed.
    */
-    @SimpleEvent(description = "Triggered anytime there is firebase datachange")
+  @SimpleEvent
   public void DataChanged(String tag, Object value) {
     try {
       if(value != null && value instanceof String) {
-        value = JsonUtil.getObjectFromJson((String) value);
+        value = JsonUtil.getObjectFromJson((String) value, true);
       }
     } catch(JSONException e) {
       throw new YailRuntimeError("Value failed to convert from JSON.", "JSON Retrieval Error.");
@@ -571,7 +569,7 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
    *
    * @param message the error message
    */
-    @SimpleEvent(description = "Triggered whenever there is any firebase error")
+  @SimpleEvent
   public void FirebaseError(String message) {
     // Log the error message for advanced developers
     Log.e(LOG_TAG, message);
@@ -590,11 +588,11 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
         "Android Too Old", "OK");
       return;
     }
-//    if(useDefault) {
-//      myFirebase = new Firebase(firebaseURL + "developers/" + developerBucket + projectBucket);
-//    } else {
+    if(useDefault) {
+      myFirebase = new Firebase(firebaseURL + "developers/" + developerBucket + projectBucket);
+    } else {
       myFirebase = new Firebase(firebaseURL + projectBucket);
-//    }
+    }
     // add listeners to the new Firebase path
     myFirebase.addChildEventListener(childListener);
     myFirebase.addAuthStateListener(authListener);
@@ -603,19 +601,19 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
   /**
    * Unauthenticate from Firebase.
    *
-   * Firebase keeps track of credentials in a cache in shared_prefs
+   *   Firebase keeps track of credentials in a cache in shared_prefs
    * It will re-use these credentials as long as they are valid. Given
    * That we retrieve a FirebaseToken with a version long life, this will
    * effectively be forever. Shared_prefs survive an application update
    * and depending on how backup is configured on a device, it might survive
    * an application removal and reinstallation.
    *
-   * Normally this is not a problem, however if we change the credentials
+   *   Normally this is not a problem, however if we change the credentials
    * used, for example the App author is switching from one Firebase account
    * to another, or invalided their firebase.secret, this cached credential
    * is invalid, but will continue to be used, which results in errors.
    *
-   * This function permits us to unauthenticate, which tosses the cached
+   *   This function permits us to unauthenticate, which tosses the cached
    * credentials. The next time authentication is needed we will use our
    * current FirebaseToken and get fresh credentials.
    */
@@ -643,11 +641,11 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
     userVisible = false)
   public void DefaultURL(String url) {
-//    defaultURL = url;
-//    if (useDefault) {
-//      firebaseURL = defaultURL;
-//      resetListener();
-//    }
+    defaultURL = url;
+    if (useDefault) {
+      firebaseURL = defaultURL;
+      resetListener();
+    }
   }
 
   @SimpleFunction(description = "Return the first element of a list and atomically remove it. " +
@@ -667,7 +665,7 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
           }
           try {
             if (value instanceof String) {
-              value = JsonUtil.getObjectFromJson((String) value);
+              value = JsonUtil.getObjectFromJson((String) value, true);
             } else {
               result.err = "Invalid JSON object in database (shouldn't happen!)";
               return Transaction.abort();
@@ -760,7 +758,7 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
           }
           try {
             if (value instanceof String) {
-              value = JsonUtil.getObjectFromJson((String) value);
+              value = JsonUtil.getObjectFromJson((String) value, true);
             } else {
               result.err = "Invalid JSON object in database (shouldn't happen!)";
               return Transaction.abort();
@@ -772,7 +770,7 @@ public class FirebaseDB extends AndroidNonvisibleComponent implements Component 
           if (value instanceof List) {
             ((List)value).add(valueToAdd);
             try {
-              value = JsonUtil.getJsonRepresentation(YailList.makeList((List)value));
+              value = JsonUtil.getJsonRepresentation((List)value);
             } catch (JSONException e) {
               result.err = "Could not convert value to JSON.";
               return Transaction.abort();
